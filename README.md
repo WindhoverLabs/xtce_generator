@@ -1,6 +1,6 @@
 # xtce_generator
 A tool to generate xtce files from a sqlite databse. 
-We follow the XTCE specifications desribed on **XTCE Verison 1.2** as per OMG document number:**formal/18-10-04**. You may find this document [here](https://www.omg.org/spec/XTCE/1.2/PDF).
+We follow the XTCE specifications described on **XTCE Verison 1.2** as per OMG document number:**formal/18-10-04**. You may find this document [here](https://www.omg.org/spec/XTCE/1.2/PDF).
 
 
 ## Dependencies
