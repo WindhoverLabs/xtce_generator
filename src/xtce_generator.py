@@ -46,11 +46,11 @@ class XTCEManager:
         self.root = xtce.SpaceSystemType(name=root_space_system)
         self.telemetry_metadata = xtce.TelemetryMetaDataType()
         self.command_metadata = xtce.CommandMetaDataType()
-        self.paramter_type_set = xtce.ParameterTypeSetType()
+        self.parameter_type_set = xtce.ParameterTypeSetType()
         self.argument_type_set = xtce.ArgumentTypeSetType()
         self.output_file = open(file_path, 'w+')
 
-        self.telemetry_metadata.set_ParameterTypeSet(self.paramter_type_set)
+        self.telemetry_metadata.set_ParameterTypeSet(self.parameter_type_set)
         self.command_metadata.set_ArgumentTypeSet(self.argument_type_set)
 
         self.root.set_TelemetryMetaData(self.telemetry_metadata)
@@ -343,7 +343,6 @@ class XTCEManager:
 
         return param_type
 
-
     def __get_float_paramtype(self, bit_size: int, little_endian: bool) -> xtce.FloatDataType:
         """
         Factory function to construct a IntegerParameterType.
@@ -379,7 +378,7 @@ class XTCEManager:
         Adds all supported base types for our ground system to the TelemetryMetaData element of
         the namespace 'BaseType', which is created to hold all of the base types. Base types are the types tha are not
         user-defined such as int16, int32, etc. Check our docs for more details on base types. Please note that these
-        base types are stored as *ParameterTypes on the xtce.
+        base types are stored as *ParameterTypes on the xtce. This also adds a variable-sized string type.
         :return:
         """
         base_set = xtce.ParameterTypeSetType()
@@ -406,23 +405,18 @@ class XTCEManager:
         base_set.add_BooleanParameterType(
             xtce.BooleanParameterType(name='boolean8_LE', IntegerDataEncoding=xtce.IntegerDataEncodingType()))
 
-        # Add char types
-        # #FIXME: We have to decide what to do about strings
-        # for bit in range(1, 160):
-        #     # Add big Endian
-        #     base_type_name = 'char' + str(bit)
-        #     param_type = xtce.StringParameterType(name=base_type_name, signed=True)
-        #     bit_size = bit
-        #
-        #     base_type_data_encoding = xtce.StringDataEncodingType(
-        #         byteOrder=xtce.ByteOrderCommonType.MOST_SIGNIFICANT_BYTE_FIRST
-        #         if bit < 8
-        #         else xtce.ByteOrderCommonType.LEAST_SIGNIFICANT_BYTE_FIRST,
-        #         SizeInBits=xtce.SizeInBitsType(Fixed=xtce.FixedType(FixedValue=bit)))
-        #
-        #     param_type.set_StringDataEncoding(base_type_data_encoding)
-        #
-        #     base_set.add_IntegerParameterType(param_type)
+
+        # Add string type
+        size_in_bits = xtce.SizeInBitsType()
+        size_in_bits.set_TerminationChar("00")
+        str_encoding = xtce.StringDataEncodingType()
+
+        str_encoding.set_SizeInBits(size_in_bits)
+        str_type = xtce.StringParameterType(name="string")
+
+        str_type.set_StringDataEncoding(str_encoding)
+
+        base_set.add_StringParameterType(str_type)
 
         base_space_system.get_TelemetryMetaData().set_ParameterTypeSet(base_set)
 
@@ -431,7 +425,7 @@ class XTCEManager:
         Adds all supported base types for our ground system to the CommandMetaData element of
         the namespace 'BaseType', which is created to hold all of the base types. Base types are the types tha are not
         user-defined such as int16, int32, etc. Check our docs for more details on base types. Please note that these
-        base types are stored as *ArgumentTypes on the xtce.
+        base types are stored as *ArgumentTypes on the xtce. This also adds a variable-sized string type.
         :return:
         """
         base_set = xtce.ArgumentTypeSetType()
@@ -455,23 +449,9 @@ class XTCEManager:
         base_set.add_IntegerArgumentType(xtce.IntegerParameterType(name='UNKNOWN', signed=False, sizeInBits='32'))
         base_set.add_BooleanArgumentType(xtce.BooleanParameterType(name='boolean8_LE'))
 
-        # Add char types
-        # #FIXME: We have to decide what to do about strings
-        # for bit in range(1, 160):
-        #     # Add big Endian
-        #     base_type_name = 'char' + str(bit)
-        #     param_type = xtce.StringParameterType(name=base_type_name, signed=True)
-        #     bit_size = bit
-        #
-        #     base_type_data_encoding = xtce.StringDataEncodingType(
-        #         byteOrder=xtce.ByteOrderCommonType.MOST_SIGNIFICANT_BYTE_FIRST
-        #         if bit < 8
-        #         else xtce.ByteOrderCommonType.LEAST_SIGNIFICANT_BYTE_FIRST,
-        #         SizeInBits=xtce.SizeInBitsType(Fixed=xtce.FixedType(FixedValue=bit)))
-        #
-        #     param_type.set_StringDataEncoding(base_type_data_encoding)
-        #
-        #     base_set.add_IntegerParameterType(param_type)
+        str_type = xtce.StringArgumentType(name="string", StringDataEncoding=xtce.StringDataEncodingType(SizeInBits=xtce.SizeInBitsType()))
+
+        base_set.add_StringArgumentType(str_type)
 
         base_space_system.get_CommandMetaData().set_ArgumentTypeSet(base_set)
 
@@ -485,7 +465,6 @@ class XTCEManager:
         self.add_namespace(self.base_type_namespace)
         self.__add_telemetry_base_types()
         self.__add_commands_base_types()
-
 
     def __get_all_basetypes(self):
         # FIXME: Maybe I should opt for a more readable solution (?)
@@ -502,7 +481,6 @@ class XTCEManager:
                     self[self.base_type_namespace].get_CommandMetaData().get_ArgumentTypeSet().get_BooleanArgumentType()
                     ])
 
-
     def __get_basetype_name(self, basename: str, bit_size: int, little_endian: bool):
         """
         A factory function that constructs the base type name.
@@ -515,6 +493,9 @@ class XTCEManager:
         . We return the fully-constructed basetype name even if we don't find it in out BaseType namespace. However,
         we do warn the user that this base type name was not found.
         """
+        if basename == 'string':
+            return 'BaseType/string'
+
         typename = basename + str(bit_size) + '_LE' if little_endian else '_BE'
         all_basetypes = self.__get_all_basetypes()
         logging.debug(f'all base types-->{all_basetypes}')
@@ -565,6 +546,8 @@ class XTCEManager:
             out_base_type = (True, 'float')
         elif type_name[:8] == '_padding':
             out_base_type = (True, '_padding')
+        elif type_name == 'string':
+            out_base_type = (True, 'string')
 
         return out_base_type
 
@@ -597,6 +580,21 @@ class XTCEManager:
         return len(self.db_cursor.execute('SELECT * FROM enumerations where symbol=?',
                                           (symbol_id,)).fetchall()) > 0
 
+    def __is__symbol_string(self, symbol_id: int):
+        """
+        Checks the database to see if the symbol id is a actually a string or not.
+        :param symbol_id:
+        :return: True if the symbol is a string. Otherwise, False is returned.
+        """
+        # NOTE: This could be cached when the XTCEManager instance is created.
+        is_string = False
+        symbol_name, = self.db_cursor.execute('SELECT name FROM symbols where id=?',
+                                             (symbol_id,)).fetchone()
+        if symbol_name == 'string':
+            is_string = True
+
+        return is_string
+
     def __get_enum_from_symbol_id(self, symbol_id: int):
         """
         Attempts to fetch an enumeration name that is mapped to symbol_id from the database.
@@ -612,6 +610,39 @@ class XTCEManager:
             out_enum_name = enums[0][2]
 
         return out_enum_name
+
+    def __get_string_param_type(self, symbol_id: int, str_name: str, str_size: int):
+        """
+        Factory function that creates a StringParameterType with the characteristics of the symbol with symbol_id
+        in the database. It is assumed that symbol_id represents a symbol in the database with the name of "string".
+        :param symbol_id:
+        :param str_name: The name of the new StringParameterType.
+        :param str_size: The size of the new string in bits.
+        :return: The new StringParameterType object. Note that that strings are encoded using UTF-8.
+        """
+        out_string_type = xtce.StringParameterType(name=str_name)
+        symbol_elf = self.db_cursor.execute('SELECT elf FROM symbols where id=?', (symbol_id,)).fetchone()
+
+        little_endian = self.is_little_endian(symbol_elf)
+
+        bit_order = xtce.BitOrderType.LEAST_SIGNIFICANT_BIT_FIRST if little_endian else \
+            xtce.BitOrderType.MOST_SIGNIFICANT_BIT_FIRST
+
+        byte_order = xtce.ByteOrderCommonType.LEAST_SIGNIFICANT_BYTE_FIRST if little_endian else \
+            xtce.ByteOrderCommonType.MOST_SIGNIFICANT_BYTE_FIRST
+
+        if str_size > 8:
+            out_string_type.set_StringDataEncoding(xtce.StringDataEncodingType(encoding=xtce.StringEncodingType.UTF_8,
+                                                                               sizeInBits=str_size,
+                                                                               bitOrder=bit_order,
+                                                                               byteOrder=byte_order))
+        else:
+            out_string_type.set_IntegerDataEncoding(xtce.StringDataEncodingType
+                                                    (encoding=xtce.StringEncodingType.UTF_8,
+                                                     sizeInBits=str_size,
+                                                     bitOrder=bit_order, ))
+
+        return out_string_type
 
     def __get_enum_param_type(self, symbol_id: int) -> xtce.EnumeratedParameterType:
         """
@@ -813,7 +844,7 @@ class XTCEManager:
                 continue
             elif field_multiplicity > 0 and field_type != field_symbol:
 
-                logging.debug(f'comparing{field_type} and {field_symbol}')
+                logging.debug(f'comparing {field_type} and {field_symbol}')
 
                 symbol_type = self.db_cursor.execute('SELECT * FROM symbols where id=?',
                                                      (field_type,)).fetchone()
@@ -832,6 +863,12 @@ class XTCEManager:
                                 module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_EnumeratedParameterType(
                                 new_enum)
                             type_ref_name = new_enum.get_name()
+
+                    # elif self.__is__symbol_string(field_type) is True:
+                        # Check if string type exists in our xtce already.
+
+                        # NOTE: It is assumed that the string type is 1 byte in the database.
+                        # new_string = self.__get_string_param_type(symbol_id, field_name, field_multiplicity)
 
                     elif base_type_val[0]:
                         #     TODO: Make a distinction between unsigned and int types
@@ -859,16 +896,23 @@ class XTCEManager:
                     type_ref_name = 'BaseType/UNKNOWN'
                     logging.warning('BaseType/UNKNOWN is being used as array type')
 
-                for index in range(field_multiplicity):
-                    child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
-                                                          (field_type,)).fetchone()
+                if self.__is__symbol_string(field_type) is False:
+                    for index in range(field_multiplicity):
+                        child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                              (field_type,)).fetchone()
 
-                    # FIXME: This entire function needs to be decoupled (?)
-                    logging.debug(f'field_symbol id on array:{field_symbol}')
-                    logging.debug(f'child symbol-->{child_symbol}')
+                        # FIXME: This entire function needs to be decoupled (?)
+                        logging.debug(f'field_symbol id on array:{field_symbol}')
+                        logging.debug(f'child symbol-->{child_symbol}')
 
+                        member = xtce.MemberType()
+                        member.set_name(f'{field_name}[{index}]')
+                        member.set_typeRef(type_ref_name)
+                        member_list.add_Member(member)
+                else:
+                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
                     member = xtce.MemberType()
-                    member.set_name(f'{field_name}[{index}]')
+                    member.set_name(f'{field_name}')
                     member.set_typeRef(type_ref_name)
                     member_list.add_Member(member)
 
@@ -985,7 +1029,7 @@ class XTCEManager:
         member_list = xtce.MemberListType()
         out_param.set_MemberList(member_list)
         symbol_id = str(symbol_record[0])
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_multiplicity, field_little_endian,  bit_size, bit_offset in fields:
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_multiplicity, field_little_endian, bit_size, bit_offset in fields:
             if field_type == field_symbol:
                 continue
             elif field_multiplicity > 0 and field_type != field_symbol:
@@ -1163,16 +1207,16 @@ class XTCEManager:
                                                  (tlm_symbol_id,)).fetchall():
                 logging.debug(f'symbol{symbol} for tlm:{tlm_name}')
 
-                aggregeate_type = self.__get_aggregate_paramtype(symbol, module_name,
-                                                                 header_size=self.__get_telemetry_base_container_length())
+                aggregate_type = self.__get_aggregate_paramtype(symbol, module_name,
+                                                                header_size=self.__get_telemetry_base_container_length())
 
                 self.__get_telemetry_header_length(tlm_symbol_id)
 
-                if aggregeate_type:
-                    if len(aggregeate_type.get_MemberList().get_Member()) > 0:
-                        base_paramtype_set.add_AggregateParameterType(aggregeate_type)
-                        telemetry_param = xtce.ParameterType(name=aggregeate_type.get_name() + '_param',
-                                                             parameterTypeRef=aggregeate_type.get_name())
+                if aggregate_type:
+                    if len(aggregate_type.get_MemberList().get_Member()) > 0:
+                        base_paramtype_set.add_AggregateParameterType(aggregate_type)
+                        telemetry_param = xtce.ParameterType(name=aggregate_type.get_name() + '_param',
+                                                             parameterTypeRef=aggregate_type.get_name())
 
                         container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
 
@@ -1193,6 +1237,7 @@ class XTCEManager:
                     container_set.add_SequenceContainer(seq_container)
 
     def __get_command_argument_assigment_list(self, apid: tuple, command_code: tuple, command_length: tuple):
+        # FIXME: There does not seem to be point to passing self here. Will re-visit.
         """
         Factory function that creates a ArgumentAssignmentListType containing three ArgumentAssignment objects;
         one for apid, one for command_code and another one for command_length.
@@ -1372,7 +1417,6 @@ class XTCEManager:
         """
         for module_id in set(self.db_cursor.execute('select module from telemetry').fetchall()):
             module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
-            # logging.debug()
             logging.debug(f'current module{module}')
             self.add_telemetry_containers(module[1], module[0],
                                           self.custom_config['global']['TelemetryMetaData']['BaseContainer'][
@@ -1380,7 +1424,6 @@ class XTCEManager:
 
         for module_id in set(self.db_cursor.execute('select module from commands').fetchall()):
             module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
-            # logging.debug()
             self.add_command_containers(module[1], module[0],
                                         self.custom_config['global']['CommandMetaData']['BaseContainer'][
                                             'container_ref'])
