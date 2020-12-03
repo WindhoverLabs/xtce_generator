@@ -405,25 +405,16 @@ class XTCEManager:
         base_set.add_BooleanParameterType(
             xtce.BooleanParameterType(name='boolean8_LE', IntegerDataEncoding=xtce.IntegerDataEncodingType()))
 
-        # Add char types
-        # #FIXME: We have to decide what to do about strings
-        # for bit in range(1, 160):
-        #     # Add big Endian
-        #     base_type_name = 'char' + str(bit)
-        #     param_type = xtce.StringParameterType(name=base_type_name, signed=True)
-        #     bit_size = bit
-        #
-        #     base_type_data_encoding = xtce.StringDataEncodingType(
-        #         byteOrder=xtce.ByteOrderCommonType.MOST_SIGNIFICANT_BYTE_FIRST
-        #         if bit < 8
-        #         else xtce.ByteOrderCommonType.LEAST_SIGNIFICANT_BYTE_FIRST,
-        #         SizeInBits=xtce.SizeInBitsType(Fixed=xtce.FixedType(FixedValue=bit)))
-        #
-        #     param_type.set_StringDataEncoding(base_type_data_encoding)
-        #
-        #     base_set.add_IntegerParameterType(param_type)
 
-        str_type = xtce.StringParameterType(name="string", StringDataEncoding=xtce.StringDataEncodingType(SizeInBits=xtce.SizeInBitsType()))
+        # Add string type
+        size_in_bits = xtce.SizeInBitsType()
+        size_in_bits.set_TerminationChar("00")
+        str_encoding = xtce.StringDataEncodingType()
+
+        str_encoding.set_SizeInBits(size_in_bits)
+        str_type = xtce.StringParameterType(name="string")
+
+        str_type.set_StringDataEncoding(str_encoding)
 
         base_set.add_StringParameterType(str_type)
 
@@ -457,24 +448,6 @@ class XTCEManager:
         base_set.add_FloatArgumentType(self.__get_float_argtype(32, False))
         base_set.add_IntegerArgumentType(xtce.IntegerParameterType(name='UNKNOWN', signed=False, sizeInBits='32'))
         base_set.add_BooleanArgumentType(xtce.BooleanParameterType(name='boolean8_LE'))
-
-        # Add char types
-        # #FIXME: We have to decide what to do about strings
-        # for bit in range(1, 160):
-        #     # Add big Endian
-        #     base_type_name = 'char' + str(bit)
-        #     param_type = xtce.StringParameterType(name=base_type_name, signed=True)
-        #     bit_size = bit
-        #
-        #     base_type_data_encoding = xtce.StringDataEncodingType(
-        #         byteOrder=xtce.ByteOrderCommonType.MOST_SIGNIFICANT_BYTE_FIRST
-        #         if bit < 8
-        #         else xtce.ByteOrderCommonType.LEAST_SIGNIFICANT_BYTE_FIRST,
-        #         SizeInBits=xtce.SizeInBitsType(Fixed=xtce.FixedType(FixedValue=bit)))
-        #
-        #     param_type.set_StringDataEncoding(base_type_data_encoding)
-        #
-        #     base_set.add_IntegerParameterType(param_type)
 
         str_type = xtce.StringArgumentType(name="string", StringDataEncoding=xtce.StringDataEncodingType(SizeInBits=xtce.SizeInBitsType()))
 
@@ -615,9 +588,9 @@ class XTCEManager:
         """
         # NOTE: This could be cached when the XTCEManager instance is created.
         is_string = False
-        symbol_name = self.db_cursor.execute('SELECT name FROM symbols where id=?',
-                                             (symbol_id,)).fetchall()
-        if len(symbol_name) > 0 and symbol_name == 'string':
+        symbol_name, = self.db_cursor.execute('SELECT name FROM symbols where id=?',
+                                             (symbol_id,)).fetchone()
+        if symbol_name == 'string':
             is_string = True
 
         return is_string
@@ -923,16 +896,23 @@ class XTCEManager:
                     type_ref_name = 'BaseType/UNKNOWN'
                     logging.warning('BaseType/UNKNOWN is being used as array type')
 
-                for index in range(field_multiplicity):
-                    child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
-                                                          (field_type,)).fetchone()
+                if self.__is__symbol_string(field_type) is False:
+                    for index in range(field_multiplicity):
+                        child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                              (field_type,)).fetchone()
 
-                    # FIXME: This entire function needs to be decoupled (?)
-                    logging.debug(f'field_symbol id on array:{field_symbol}')
-                    logging.debug(f'child symbol-->{child_symbol}')
+                        # FIXME: This entire function needs to be decoupled (?)
+                        logging.debug(f'field_symbol id on array:{field_symbol}')
+                        logging.debug(f'child symbol-->{child_symbol}')
 
+                        member = xtce.MemberType()
+                        member.set_name(f'{field_name}[{index}]')
+                        member.set_typeRef(type_ref_name)
+                        member_list.add_Member(member)
+                else:
+                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
                     member = xtce.MemberType()
-                    member.set_name(f'{field_name}[{index}]')
+                    member.set_name(f'{field_name}')
                     member.set_typeRef(type_ref_name)
                     member_list.add_Member(member)
 

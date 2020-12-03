@@ -18548,7 +18548,7 @@ class SizeInBitsType(GeneratedsSuper):
     def hasContent_(self):
         if (
                 self.Fixed is not None or
-                self.TerminationChar != "00" or
+                self.TerminationChar != "" or
                 self.LeadingSize is not None
         ):
             return True
@@ -18596,7 +18596,7 @@ class SizeInBitsType(GeneratedsSuper):
             namespaceprefix_ = self.Fixed_nsprefix_ + ':' if (UseCapturedNS_ and self.Fixed_nsprefix_) else ''
             self.Fixed.export(outfile, level, namespaceprefix_, namespacedef_='', name_='Fixed',
                               pretty_print=pretty_print)
-        if self.TerminationChar != "00":
+        if self.TerminationChar != "":
             namespaceprefix_ = self.TerminationChar_nsprefix_ + ':' if (
                         UseCapturedNS_ and self.TerminationChar_nsprefix_) else ''
             showIndent(outfile, level, pretty_print)
@@ -18743,7 +18743,7 @@ class ArgumentVariableStringType(GeneratedsSuper):
                 self.DynamicValue is not None or
                 self.DiscreteLookupList is not None or
                 self.LeadingSize is not None or
-                self.TerminationChar != "00"
+                self.TerminationChar != ""
         ):
             return True
         else:
@@ -18805,7 +18805,7 @@ class ArgumentVariableStringType(GeneratedsSuper):
                         UseCapturedNS_ and self.LeadingSize_nsprefix_) else ''
             self.LeadingSize.export(outfile, level, namespaceprefix_, namespacedef_='', name_='LeadingSize',
                                     pretty_print=pretty_print)
-        if self.TerminationChar != "00":
+        if self.TerminationChar != "":
             namespaceprefix_ = self.TerminationChar_nsprefix_ + ':' if (
                         UseCapturedNS_ and self.TerminationChar_nsprefix_) else ''
             showIndent(outfile, level, pretty_print)
@@ -18956,7 +18956,7 @@ class VariableStringType(GeneratedsSuper):
                 self.DynamicValue is not None or
                 self.DiscreteLookupList is not None or
                 self.LeadingSize is not None or
-                self.TerminationChar != "00"
+                self.TerminationChar != ""
         ):
             return True
         else:
@@ -19017,7 +19017,7 @@ class VariableStringType(GeneratedsSuper):
                         UseCapturedNS_ and self.LeadingSize_nsprefix_) else ''
             self.LeadingSize.export(outfile, level, namespaceprefix_, namespacedef_='', name_='LeadingSize',
                                     pretty_print=pretty_print)
-        if self.TerminationChar != "00":
+        if self.TerminationChar != "":
             namespaceprefix_ = self.TerminationChar_nsprefix_ + ':' if (
                         UseCapturedNS_ and self.TerminationChar_nsprefix_) else ''
             showIndent(outfile, level, pretty_print)
