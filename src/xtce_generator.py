@@ -611,39 +611,6 @@ class XTCEManager:
 
         return out_enum_name
 
-    def __get_string_param_type(self, symbol_id: int, str_name: str, str_size: int):
-        """
-        Factory function that creates a StringParameterType with the characteristics of the symbol with symbol_id
-        in the database. It is assumed that symbol_id represents a symbol in the database with the name of "string".
-        :param symbol_id:
-        :param str_name: The name of the new StringParameterType.
-        :param str_size: The size of the new string in bits.
-        :return: The new StringParameterType object. Note that that strings are encoded using UTF-8.
-        """
-        out_string_type = xtce.StringParameterType(name=str_name)
-        symbol_elf = self.db_cursor.execute('SELECT elf FROM symbols where id=?', (symbol_id,)).fetchone()
-
-        little_endian = self.is_little_endian(symbol_elf)
-
-        bit_order = xtce.BitOrderType.LEAST_SIGNIFICANT_BIT_FIRST if little_endian else \
-            xtce.BitOrderType.MOST_SIGNIFICANT_BIT_FIRST
-
-        byte_order = xtce.ByteOrderCommonType.LEAST_SIGNIFICANT_BYTE_FIRST if little_endian else \
-            xtce.ByteOrderCommonType.MOST_SIGNIFICANT_BYTE_FIRST
-
-        if str_size > 8:
-            out_string_type.set_StringDataEncoding(xtce.StringDataEncodingType(encoding=xtce.StringEncodingType.UTF_8,
-                                                                               sizeInBits=str_size,
-                                                                               bitOrder=bit_order,
-                                                                               byteOrder=byte_order))
-        else:
-            out_string_type.set_IntegerDataEncoding(xtce.StringDataEncodingType
-                                                    (encoding=xtce.StringEncodingType.UTF_8,
-                                                     sizeInBits=str_size,
-                                                     bitOrder=bit_order, ))
-
-        return out_string_type
-
     def __get_enum_param_type(self, symbol_id: int) -> xtce.EnumeratedParameterType:
         """
         Factory function that creates a EnumeratedParameterType that is described by the symbol with symbol_id
@@ -745,6 +712,51 @@ class XTCEManager:
                     does_aggregate_exist = True
 
         return does_aggregate_exist
+
+    def get_aggregate_param_type(self, type_name: str, namespace: str) -> xtce.AggregateParameterType:
+        """
+        Returns a parameter type with the name of tyoe_name. Note that this type_name is the same
+        name of a symbol that appears in the database. The namespace refers to the spacesystem inside the XTCE. The
+        namespace is the same as the modules in the database. Please note that the type returned is local to the namespace.
+        :param type_name:
+        :param namespace:
+        :return: The  param type object. If the parameter with name of type_name does not exist None is returned.
+        """
+        out_param_type_ref = None
+        if namespace in self.__namespace_dict:
+            if self[namespace].get_TelemetryMetaData().get_ParameterTypeSet():
+                types = [aggregate_name.get_name() for aggregate_name in
+                         self[namespace].get_TelemetryMetaData().get_ParameterTypeSet().get_AggregateParameterType() if
+                         aggregate_name.get_name() == type_name]
+
+                # There should only be one type in the list.
+                if len(types) > 0 and len(types) == 1:
+                    out_param_type_ref = types[0].get_name()
+
+        return out_param_type_ref
+
+    def get_aggregate_arg_type(self, type_name: str, namespace: str) -> xtce.AggregateArgumentType:
+        """
+        Returns an argument type with the name of tyoe_name. Note that this type_name is the same
+        name of a symbol that appears in the database. The namespace refers to the spacesystem inside the XTCE. The
+        namespace is the same as the modules in the database. Please note that the type returned is local to the namespace.
+        :param type_name:
+        :param namespace:
+        :return: The name of the type which may be used as a typeRef inside of a argument type parameter. If the argument
+        with name o type_name does not exist None is returned.
+        """
+        out_arg_type_ref = None
+        if namespace in self.__namespace_dict:
+            if self[namespace].get_TelemetryMetaData().get_ParameterTypeSet():
+                types = [aggregate_name.get_name() for aggregate_name in
+                         self[namespace].get_TelemetryMetaData().get_ParameterTypeSet().get_AggregateParameterType() if
+                         aggregate_name.get_name() == type_name]
+
+                # There should only be one type in the list.
+                if len(types) > 0 and len(types) == 1:
+                    out_arg_type_ref = types[0]
+
+        return out_arg_type_ref
 
     def __enumeration_paramtype_exists(self, symbol_id: int, namespace: str):
         """
@@ -864,12 +876,6 @@ class XTCEManager:
                                 new_enum)
                             type_ref_name = new_enum.get_name()
 
-                    # elif self.__is__symbol_string(field_type) is True:
-                        # Check if string type exists in our xtce already.
-
-                        # NOTE: It is assumed that the string type is 1 byte in the database.
-                        # new_string = self.__get_string_param_type(symbol_id, field_name, field_multiplicity)
-
                     elif base_type_val[0]:
                         #     TODO: Make a distinction between unsigned and int types
                         type_ref_name = self.__get_basetype_name(base_type_val[1], symbol_type[3] * 8,
@@ -896,7 +902,13 @@ class XTCEManager:
                     type_ref_name = 'BaseType/UNKNOWN'
                     logging.warning('BaseType/UNKNOWN is being used as array type')
 
-                if self.__is__symbol_string(field_type) is False:
+                if self.__is__symbol_string(field_type) is True:                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
+                    member = xtce.MemberType()
+                    member.set_name(f'{field_name}')
+                    member.set_typeRef(type_ref_name)
+                    member_list.add_Member(member)
+
+                else:
                     for index in range(field_multiplicity):
                         child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
                                                               (field_type,)).fetchone()
@@ -909,12 +921,6 @@ class XTCEManager:
                         member.set_name(f'{field_name}[{index}]')
                         member.set_typeRef(type_ref_name)
                         member_list.add_Member(member)
-                else:
-                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
-                    member = xtce.MemberType()
-                    member.set_name(f'{field_name}')
-                    member.set_typeRef(type_ref_name)
-                    member_list.add_Member(member)
 
             else:
                 logging.debug('else block')
@@ -1022,13 +1028,15 @@ class XTCEManager:
             fields = self.db_cursor.execute('SELECT * FROM fields where symbol=?',
                                             (symbol_id,)).fetchall()
 
+        # Enforce ordering of fields by offset.
+        fields.sort(key=lambda record: record[3])
+
         logging.debug(f'root fields-->{fields}')
 
         type_ref_name = None
 
         member_list = xtce.MemberListType()
         out_param.set_MemberList(member_list)
-        symbol_id = str(symbol_record[0])
         for field_id, field_symbol, field_name, field_byte_offset, field_type, field_multiplicity, field_little_endian, bit_size, bit_offset in fields:
             if field_type == field_symbol:
                 continue
@@ -1079,18 +1087,26 @@ class XTCEManager:
                     type_ref_name = 'BaseType/UNKNOWN'
                     logging.warning('BaseType/UNKNOWN is being used as array type')
 
-                for index in range(field_multiplicity):
-                    child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
-                                                          (field_type,)).fetchone()
-
-                    # FIXME: This entire function needs to be decoupled (?)
-                    logging.debug(f'field_symbol id on array:{field_symbol}')
-                    logging.debug(f'child symbol-->{child_symbol}')
-
+                if self.__is__symbol_string(field_type) is True:
+                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
                     member = xtce.MemberType()
-                    member.set_name(f'{field_name}[{index}]')
+                    member.set_name(f'{field_name}')
                     member.set_typeRef(type_ref_name)
                     member_list.add_Member(member)
+
+                else:
+                    for index in range(field_multiplicity):
+                        child_symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                              (field_type,)).fetchone()
+
+                        # FIXME: This entire function needs to be decoupled (?)
+                        logging.debug(f'field_symbol id on array:{field_symbol}')
+                        logging.debug(f'child symbol-->{child_symbol}')
+
+                        member = xtce.MemberType()
+                        member.set_name(f'{field_name}[{index}]')
+                        member.set_typeRef(type_ref_name)
+                        member_list.add_Member(member)
 
             else:
                 logging.debug('else block')
@@ -1217,24 +1233,29 @@ class XTCEManager:
                         base_paramtype_set.add_AggregateParameterType(aggregate_type)
                         telemetry_param = xtce.ParameterType(name=aggregate_type.get_name() + '_param',
                                                              parameterTypeRef=aggregate_type.get_name())
+                else:
+                    telemetry_param = self.get_aggregate_param_type(symbol[2], module_name)
 
-                        container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
+                container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
 
-                        base_param_set.add_Parameter(telemetry_param)
-                        container_entry_list.add_ParameterRefEntry(container_param_ref)
-                    if parent_container:
-                        seq_container.set_BaseContainer(
-                            xtce.BaseContainerType(containerRef=parent_container + '/cfs-tlm-hdr'))
-                        comparison = xtce.ComparisonType()
-                        comparison.set_parameterRef(parent_container + '/ccsds-apid')
-                        comparison.set_value(self.__get_apid(tlm_message_id))
-                        base_container_restriction = xtce.RestrictionCriteriaType()
-                        comparison_list = xtce.ComparisonListType()
-                        comparison_list.add_Comparison(comparison)
-                        base_container_restriction.set_ComparisonList(comparison_list)
-                        seq_container.get_BaseContainer().set_RestrictionCriteria(base_container_restriction)
+                base_param_set.add_Parameter(telemetry_param)
+                container_entry_list.add_ParameterRefEntry(container_param_ref)
+            if parent_container:
+                seq_container.set_BaseContainer(
+                    xtce.BaseContainerType(containerRef=parent_container + '/cfs-tlm-hdr'))
+                comparison = xtce.ComparisonType()
+                comparison.set_parameterRef(parent_container + '/ccsds-apid')
+                comparison.set_value(self.__get_apid(tlm_message_id))
+                base_container_restriction = xtce.RestrictionCriteriaType()
+                comparison_list = xtce.ComparisonListType()
+                comparison_list.add_Comparison(comparison)
+                base_container_restriction.set_ComparisonList(comparison_list)
+                seq_container.get_BaseContainer().set_RestrictionCriteria(base_container_restriction)
 
-                    container_set.add_SequenceContainer(seq_container)
+                container_set.add_SequenceContainer(seq_container)
+
+
+
 
     def __get_command_argument_assigment_list(self, apid: tuple, command_code: tuple, command_length: tuple):
         # FIXME: There does not seem to be point to passing self here. Will re-visit.
@@ -1378,19 +1399,17 @@ class XTCEManager:
                     if len(aggregeate_type.get_MemberList().get_Member()) > 0:
                         base_argtype_set.add_AggregateArgumentType(aggregeate_type)
 
-                        for member in self.__extract_members_from_aggregate_argtype(aggregeate_type,
-                                                                                    module_name).get_Member():
-                            # for memeber in aggregeate_type.get_MemberList().get_Member():
-                            command_arg = xtce.ArgumentType(name=member.get_name() + '_arg',
-                                                            argumentTypeRef=member.get_typeRef())
-                            container_entry_list.add_ArgumentRefEntry(
-                                xtce.ArgumentArgumentRefEntryType(argumentRef=command_arg.get_name()))
+                        command_arg = xtce.ArgumentType(name=aggregeate_type.get_name() + '_arg',
+                                                        argumentTypeRef=aggregeate_type.get_typeRef())
+                    else:
+                        command_arg = self.get_aggregate_arg_type(symbol[2], module_name)
 
-                            # container_arg_ref = xtcparameterRef=command_arg.get_name())
+                    container_entry_list.add_ArgumentRefEntry(
+                    xtce.ArgumentArgumentRefEntryType(argumentRef=command_arg.get_name()))
 
-                            base_arg_set.add_Argument(command_arg)
-                            # container_entry_list.setA('container_arg_ref')
-                        meta_command.set_ArgumentList(base_arg_set)
+                    base_arg_set.add_Argument(command_arg)
+
+                    meta_command.set_ArgumentList(base_arg_set)
 
                     # NOTE: It is assumed that the arguments to be set on the base command are apid, command_code and
                     # command_length
@@ -1406,8 +1425,6 @@ class XTCEManager:
                         meta_command.set_BaseMetaCommand(base_command)
                     meta_command.set_CommandContainer(command_container)
                     meta_command_set.add_MetaCommand(meta_command)
-                else:
-                    pass
 
     def add_aggregate_types(self):
         """
