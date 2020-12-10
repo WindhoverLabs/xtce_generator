@@ -713,7 +713,7 @@ class XTCEManager:
 
         return does_aggregate_exist
 
-    def get_aggregate_param_type(self, type_name: str, namespace: str) -> xtce.AggregateParameterType:
+    def find_aggregate_param_type(self, type_name: str, namespace: str) -> xtce.AggregateParameterType:
         """
         Returns a parameter type with the name of tyoe_name. Note that this type_name is the same
         name of a symbol that appears in the database. The namespace refers to the spacesystem inside the XTCE. The
@@ -735,7 +735,7 @@ class XTCEManager:
 
         return out_param_type_ref
 
-    def get_aggregate_arg_type(self, type_name: str, namespace: str) -> xtce.AggregateArgumentType:
+    def find_aggregate_arg_type(self, type_name: str, namespace: str) -> xtce.AggregateArgumentType:
         """
         Returns an argument type with the name of tyoe_name. Note that this type_name is the same
         name of a symbol that appears in the database. The namespace refers to the spacesystem inside the XTCE. The
@@ -1234,7 +1234,7 @@ class XTCEManager:
                         telemetry_param = xtce.ParameterType(name=aggregate_type.get_name() + '_param',
                                                              parameterTypeRef=aggregate_type.get_name())
                 else:
-                    telemetry_param = self.get_aggregate_param_type(symbol[2], module_name)
+                    telemetry_param = self.find_aggregate_param_type(symbol[2], module_name)
 
                 container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
 
@@ -1283,7 +1283,8 @@ class XTCEManager:
     def __get_command_length(self, symbol_id: int):
         """
         Calculate the size of a command(in bytes) that uses the struct that has symbol_id as its id on the database.
-        This function assumes the fields table schema is (id,symbol, name, byte_offset, multiplicity, little_endian).
+        This function assumes the fields table schema is (id,symbol, name, byte_offset, multiplicity, little_endian,
+        bit_size, bit_offset).
         This function ALWAYS subtract 7 from the total size.
         :param symbol_id: The id of the struct used to calculate the size(length) of a command.
         :return:
@@ -1402,7 +1403,11 @@ class XTCEManager:
                         command_arg = xtce.ArgumentType(name=aggregeate_type.get_name() + '_arg',
                                                         argumentTypeRef=aggregeate_type.get_typeRef())
                     else:
-                        command_arg = self.get_aggregate_arg_type(symbol[2], module_name)
+                        command_arg = self.find_aggregate_arg_type(symbol[2], module_name)
+                        if command_arg is None:
+                            logging.warning(f'The symbol record {symbol} in module {module_name} will not be used'
+                                            f' as a typeref for Arguments.')
+                            continue
 
                     container_entry_list.add_ArgumentRefEntry(
                     xtce.ArgumentArgumentRefEntryType(argumentRef=command_arg.get_name()))
