@@ -1,3 +1,5 @@
+from typing import Union
+
 from src import xtce
 import argparse
 import sqlite3
@@ -405,7 +407,6 @@ class XTCEManager:
         base_set.add_BooleanParameterType(
             xtce.BooleanParameterType(name='boolean8_LE', IntegerDataEncoding=xtce.IntegerDataEncodingType()))
 
-
         # Add string type
         size_in_bits = xtce.SizeInBitsType()
         size_in_bits.set_TerminationChar("00")
@@ -449,7 +450,8 @@ class XTCEManager:
         base_set.add_IntegerArgumentType(xtce.IntegerParameterType(name='UNKNOWN', signed=False, sizeInBits='32'))
         base_set.add_BooleanArgumentType(xtce.BooleanParameterType(name='boolean8_LE'))
 
-        str_type = xtce.StringArgumentType(name="string", StringDataEncoding=xtce.StringDataEncodingType(SizeInBits=xtce.SizeInBitsType()))
+        str_type = xtce.StringArgumentType(name="string", StringDataEncoding=xtce.StringDataEncodingType(
+            SizeInBits=xtce.SizeInBitsType()))
 
         base_set.add_StringArgumentType(str_type)
 
@@ -589,7 +591,7 @@ class XTCEManager:
         # NOTE: This could be cached when the XTCEManager instance is created.
         is_string = False
         symbol_name, = self.db_cursor.execute('SELECT name FROM symbols where id=?',
-                                             (symbol_id,)).fetchone()
+                                              (symbol_id,)).fetchone()
         if symbol_name == 'string':
             is_string = True
 
@@ -697,7 +699,7 @@ class XTCEManager:
 
     def __aggrregate_paramtype_exists(self, type_name: str, namespace: str):
         """
-        Checks if the aggregate type with type_name exists in the telemetry child of our root space system.
+        Checks if the aggregate type with type_name exists in the telemetry child of the namesapce space system.
         :return:
         """
         does_aggregate_exist = False
@@ -715,7 +717,7 @@ class XTCEManager:
 
     def find_aggregate_param_type(self, type_name: str, namespace: str) -> xtce.AggregateParameterType:
         """
-        Returns a parameter type with the name of tyoe_name. Note that this type_name is the same
+        Returns a parameter type with the name of type_name. Note that this type_name is the same
         name of a symbol that appears in the database. The namespace refers to the spacesystem inside the XTCE. The
         namespace is the same as the modules in the database. Please note that the type returned is local to the namespace.
         :param type_name:
@@ -725,13 +727,13 @@ class XTCEManager:
         out_param_type_ref = None
         if namespace in self.__namespace_dict:
             if self[namespace].get_TelemetryMetaData().get_ParameterTypeSet():
-                types = [aggregate_name.get_name() for aggregate_name in
+                types = [aggregate_name for aggregate_name in
                          self[namespace].get_TelemetryMetaData().get_ParameterTypeSet().get_AggregateParameterType() if
                          aggregate_name.get_name() == type_name]
 
                 # There should only be one type in the list.
-                if len(types) > 0 and len(types) == 1:
-                    out_param_type_ref = types[0].get_name()
+                if len(types) > 0:
+                    out_param_type_ref = types[0]
 
         return out_param_type_ref
 
@@ -743,24 +745,26 @@ class XTCEManager:
         :param type_name:
         :param namespace:
         :return: The name of the type which may be used as a typeRef inside of a argument type parameter. If the argument
-        with name o type_name does not exist None is returned.
+        with name of type_name does not exist None is returned.
         """
         out_arg_type_ref = None
         if namespace in self.__namespace_dict:
-            if self[namespace].get_TelemetryMetaData().get_ParameterTypeSet():
-                types = [aggregate_name.get_name() for aggregate_name in
-                         self[namespace].get_TelemetryMetaData().get_ParameterTypeSet().get_AggregateParameterType() if
+            if self[namespace].get_CommandMetaData().get_ArgumentTypeSet():
+                types = [aggregate_name for aggregate_name in
+                         self[namespace].get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType() if
                          aggregate_name.get_name() == type_name]
 
                 # There should only be one type in the list.
-                if len(types) > 0 and len(types) == 1:
+                if len(types) > 0:
+                    print('type-->', types)
                     out_arg_type_ref = types[0]
+        print(f'looking for {type_name}')
 
         return out_arg_type_ref
 
     def __enumeration_paramtype_exists(self, symbol_id: int, namespace: str):
         """
-        Checks if the enumerated type with symbol_id exists in the telemetry child of our root space system.
+        Checks if the enumerated type with symbol_id exists in the telemetry child of the namespace space system.
         :return:
         """
         does_enum_exist = False
@@ -786,7 +790,7 @@ class XTCEManager:
 
     def __enumeration_argtype_exists(self, symbol_id: int, namespace: str):
         """
-        Checks if the enumerated type with symbol_id exists in the command metadata child of our root space system.
+        Checks if the enumerated type with symbol_id exists in the command metadata child of the namespace space system.
         :return:
         """
         does_enum_exist = False
@@ -811,13 +815,15 @@ class XTCEManager:
         return does_enum_exist
 
     def __get_aggregate_paramtype(self, symbol_record: tuple, module_name: str,
-                                  header_present: bool = True, header_size: int = 0) -> xtce.AggregateParameterType:
+                                  header_present: bool = True, header_size: int = 0) -> Union[
+        xtce.AggregateParameterType, None]:
         """
         A factory function to create an aggregateParamType type pointed to by symbol_id.
         :param symbol_record: A tuple containing the symbol record of the database in the form of
         (id, elf, name, byte_size)
         :return: If the symbol is processed successfully, an AggregateParameterType representing that symbol(struct) is returned.
-        If the symbol already exists, then None is returned. Beware that if this function finds a field of the symbol record
+        If the symbol already exists, then the AggregateParameterType representing this symbol is returned.
+        Beware that if this function finds a field of the symbol record
         whose type does not exist(such as a field that has a struct type not defined in our xtce), then this function takes
         the liberty of adding it to the telemetry object in the xtce object.
         """
@@ -827,7 +833,7 @@ class XTCEManager:
 
         # If the symbol exists already in our xtce, we don't need to explore it any further
         if self.__aggrregate_paramtype_exists(symbol_record[2], module_name):
-            return None
+            return self.find_aggregate_param_type(symbol_record[2], module_name)
 
         logging.debug(f'symbol record-->{symbol_record}')
 
@@ -888,21 +894,16 @@ class XTCEManager:
                         logging.debug(f'field_symbol id:{field_symbol}')
                         logging.debug(f'child symbol-->{child_symbol}')
                         child = self.__get_aggregate_paramtype(child_symbol, module_name)
-                        # If the symbol did not exists in our xtce, we add it to our telemetry types
+                        if self.__aggrregate_paramtype_exists(child_symbol[2], module_name) is False:
+                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(child)
+                        type_ref_name = child.get_name()
 
-                        if child:
-                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
-                                child)
-                            type_ref_name = child.get_name()
-                        # If the symbol does exist in our telemetry in our telemetry object, all we need
-                        # is its name
-                        else:
-                            type_ref_name = child_symbol[2]
                 else:
                     type_ref_name = 'BaseType/UNKNOWN'
                     logging.warning('BaseType/UNKNOWN is being used as array type')
 
-                if self.__is__symbol_string(field_type) is True:                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
+                if self.__is__symbol_string(field_type) is True:
+                    # If the field is a string, then it is a special kind of array that ends in a null terminator.
                     member = xtce.MemberType()
                     member.set_name(f'{field_name}')
                     member.set_typeRef(type_ref_name)
@@ -957,18 +958,9 @@ class XTCEManager:
                         logging.debug(f'child symbol-->{child_symbol}')
                         logging.debug(f'field id-->{field_id})')
                         child = self.__get_aggregate_paramtype(child_symbol, module_name)
-
-                        # If the symbol did not exists in our xtce, we add it to our telemetry types
-                        if child:
-                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
-                                child)
-                            type_ref_name = child.get_name()
-                        # If the symbol does exist in our telemetry in our telemetry object, we all we need
-                        # is its name
-                        else:
-                            logging.debug(f'symbol exists for {child_symbol[2]}')
-                            type_ref_name = child_symbol[2]
-
+                        if self.__aggrregate_paramtype_exists(child_symbol[2], module_name) is False:
+                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(child)
+                        type_ref_name = child.get_name()
                 else:
                     type_ref_name = 'BaseType/UNKNOWN'
 
@@ -980,7 +972,7 @@ class XTCEManager:
 
     def __aggrregate_argtype_exists(self, type_name: str, namespace: str):
         """
-        Checks if the aggregate type with type_name exists in the telemetry child of our root space system.
+        Checks if the aggregate type with type_name exists in the command child of the space system namespace.
         :return:
         """
         does_aggregate_exist = False
@@ -991,21 +983,21 @@ class XTCEManager:
                          self[namespace].get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType() if
                          aggregate_name.get_name() == type_name]
 
-                var = self[namespace].get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType()
-
                 if len(types) > 0:
                     does_aggregate_exist = True
 
         return does_aggregate_exist
 
     def __get_aggregate_argtype(self, symbol_record: tuple, module_name: str,
-                                header_present: bool = True, header_size: int = 0) -> xtce.AggregateArgumentType:
+                                header_present: bool = True, header_size: int = 0) -> Union[
+        xtce.AggregateArgumentType, None]:
         """
         A factory function to create an aggregateArgumentType type pointed to by symbol_id.
         :param symbol_record: A tuple containing the symbol record of the database in the form of
         (id, elf, name, byte_size)
         :return: If the symbol is processed successfully, an aggregateArgumentType representing that symbol(struct) is returned.
-        If the symbol already exists, then None is returned. Beware that if this function finds a field of the symbol record
+        If the symbol already exists, then a reference to the aggregateArgumentType that represents that symbol  is returned.
+        Beware that if this function finds a field of the symbol record
         whose type does not exist(sucha as a field that has a struct type not defined in our xtce), then function takes
         the liberty of adding it to the telemetry object in the xtce object.
         """
@@ -1014,7 +1006,7 @@ class XTCEManager:
 
         # If the symbol exists already in our xtce, we don't need to explore it any further
         if self.__aggrregate_argtype_exists(symbol_record[2], module_name):
-            return None
+            return self.find_aggregate_arg_type(symbol_record[2], module_name)
 
         logging.debug(f'symbol record-->{symbol_record}')
 
@@ -1074,15 +1066,9 @@ class XTCEManager:
                         logging.debug(f'field_symbol id:{field_symbol}')
                         logging.debug(f'child symbol-->{child_symbol}')
                         child = self.__get_aggregate_argtype(child_symbol, module_name, False)
-                        # If the symbol did not exist in our xtce, we add it to our telemetry types
-                        if child:
-                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(
-                                child)
-                            type_ref_name = child.get_name()
-                        # If the symbol does exist in our telemetry in our telemetry object, all we need
-                        # is its name
-                        else:
-                            type_ref_name = child_symbol[2]
+                        if self.__aggrregate_argtype_exists(child_symbol[2], module_name) is False:
+                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(child)
+                        type_ref_name = child.get_name()
                 else:
                     type_ref_name = 'BaseType/UNKNOWN'
                     logging.warning('BaseType/UNKNOWN is being used as array type')
@@ -1143,17 +1129,9 @@ class XTCEManager:
                         logging.debug(f'child symbol-->{child_symbol}')
                         logging.debug(f'field id-->{field_id})')
                         child = self.__get_aggregate_argtype(child_symbol, module_name, False)
-
-                        # If the symbol did not exists in our xtce, we add it to our telemetry types
-                        if child:
-                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(
-                                child)
-                            type_ref_name = child.get_name()
-                        # If the symbol does exist in our telemetry in our command object, we all we need
-                        # is its name
-                        else:
-                            logging.debug(f'symbol exists for {child_symbol[2]}')
-                            type_ref_name = child_symbol[2]
+                        if self.__aggrregate_argtype_exists(child_symbol[2], module_name) is False:
+                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(child)
+                        type_ref_name = child.get_name()
 
                 else:
                     type_ref_name = 'BaseType/UNKNOWN'
@@ -1228,34 +1206,30 @@ class XTCEManager:
 
                 self.__get_telemetry_header_length(tlm_symbol_id)
 
-                if aggregate_type:
-                    if len(aggregate_type.get_MemberList().get_Member()) > 0:
+                if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
+                    if self.__aggrregate_paramtype_exists(symbol[2], module_name) is False:
                         base_paramtype_set.add_AggregateParameterType(aggregate_type)
-                        telemetry_param = xtce.ParameterType(name=aggregate_type.get_name() + '_param',
-                                                             parameterTypeRef=aggregate_type.get_name())
-                else:
-                    telemetry_param = self.find_aggregate_param_type(symbol[2], module_name)
+
+                telemetry_param = xtce.ParameterType(name=aggregate_type.get_name() + '_param',
+                                                     parameterTypeRef=aggregate_type.get_name())
 
                 container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
 
                 base_param_set.add_Parameter(telemetry_param)
                 container_entry_list.add_ParameterRefEntry(container_param_ref)
-            if parent_container:
-                seq_container.set_BaseContainer(
-                    xtce.BaseContainerType(containerRef=parent_container + '/cfs-tlm-hdr'))
-                comparison = xtce.ComparisonType()
-                comparison.set_parameterRef(parent_container + '/ccsds-apid')
-                comparison.set_value(self.__get_apid(tlm_message_id))
-                base_container_restriction = xtce.RestrictionCriteriaType()
-                comparison_list = xtce.ComparisonListType()
-                comparison_list.add_Comparison(comparison)
-                base_container_restriction.set_ComparisonList(comparison_list)
-                seq_container.get_BaseContainer().set_RestrictionCriteria(base_container_restriction)
+                if parent_container:
+                    seq_container.set_BaseContainer(
+                        xtce.BaseContainerType(containerRef=parent_container + '/cfs-tlm-hdr'))
+                    comparison = xtce.ComparisonType()
+                    comparison.set_parameterRef(parent_container + '/ccsds-apid')
+                    comparison.set_value(self.__get_apid(tlm_message_id))
+                    base_container_restriction = xtce.RestrictionCriteriaType()
+                    comparison_list = xtce.ComparisonListType()
+                    comparison_list.add_Comparison(comparison)
+                    base_container_restriction.set_ComparisonList(comparison_list)
+                    seq_container.get_BaseContainer().set_RestrictionCriteria(base_container_restriction)
 
-                container_set.add_SequenceContainer(seq_container)
-
-
-
+                    container_set.add_SequenceContainer(seq_container)
 
     def __get_command_argument_assigment_list(self, apid: tuple, command_code: tuple, command_length: tuple):
         # FIXME: There does not seem to be point to passing self here. Will re-visit.
@@ -1389,47 +1363,46 @@ class XTCEManager:
             base_arg_set = xtce.ArgumentListType()
             logging.debug(f'message id:{command_message_id}')
 
+            meta_command.set_ArgumentList(base_arg_set)
+
             for symbol in self.db_cursor.execute('select * from symbols where id=?',
                                                  (command_symbol_id,)).fetchall():
                 logging.debug(f'symbol{symbol} for tlm:{command_name}')
 
-                aggregeate_type = self.__get_aggregate_argtype(symbol, module_name,
+                aggregate_type = self.__get_aggregate_argtype(symbol, module_name,
                                                                header_size=self.__get_command_base_container_length())
 
-                if aggregeate_type:
-                    if len(aggregeate_type.get_MemberList().get_Member()) > 0:
-                        base_argtype_set.add_AggregateArgumentType(aggregeate_type)
+                if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
+                    if self.__aggrregate_argtype_exists(symbol[2], module_name) is False:
+                        base_argtype_set.add_AggregateArgumentType(aggregate_type)
 
-                        command_arg = xtce.ArgumentType(name=aggregeate_type.get_name() + '_arg',
-                                                        argumentTypeRef=aggregeate_type.get_typeRef())
-                    else:
-                        command_arg = self.find_aggregate_arg_type(symbol[2], module_name)
-                        if command_arg is None:
-                            logging.warning(f'The symbol record {symbol} in module {module_name} will not be used'
-                                            f' as a typeref for Arguments.')
-                            continue
-
-                    container_entry_list.add_ArgumentRefEntry(
-                    xtce.ArgumentArgumentRefEntryType(argumentRef=command_arg.get_name()))
-
-                    base_arg_set.add_Argument(command_arg)
-
+                    # If the list is not flattened, then YAMCS does not allow us to send the command from the Web Interface
+                    for member in self.__extract_members_from_aggregate_argtype(aggregate_type,
+                                                                                module_name).get_Member():
+                        command_arg = xtce.ArgumentType(name=member.get_name() + '_arg',
+                                                        argumentTypeRef=member.get_typeRef())
+                        container_entry_list.add_ArgumentRefEntry(
+                            xtce.ArgumentArgumentRefEntryType(argumentRef=command_arg.get_name()))
+                        base_arg_set.add_Argument(command_arg)
+                    # container_entry_list.setA('container_arg_ref')
                     meta_command.set_ArgumentList(base_arg_set)
 
-                    # NOTE: It is assumed that the arguments to be set on the base command are apid, command_code and
-                    # command_length
-                    if parent_command:
-                        base_command = xtce.BaseMetaCommandType(metaCommandRef=parent_command)
-                        argument_assigment_list = self.__get_command_argument_assigment_list(
-                            ('ccsds-apid', self.__get_apid(command_message_id)),
-                            ('cfs-cmd-code', command_code),
-                            ('ccsds-length', self.__get_command_length(command_symbol_id)))
+                # NOTE: It is assumed that the arguments to be set on the base command are apid, command_code and
+                # command_length
+            base_command = None
+            if parent_command:
+                base_command = xtce.BaseMetaCommandType(metaCommandRef=parent_command)
+                argument_assigment_list = self.__get_command_argument_assigment_list(
+                    ('ccsds-apid', self.__get_apid(command_message_id)),
+                    ('cfs-cmd-code', command_code),
+                    ('ccsds-length', self.__get_command_length(command_symbol_id)))
 
-                        base_command.set_ArgumentAssignmentList(argument_assigment_list)
+                base_command.set_ArgumentAssignmentList(argument_assigment_list)
 
-                        meta_command.set_BaseMetaCommand(base_command)
-                    meta_command.set_CommandContainer(command_container)
-                    meta_command_set.add_MetaCommand(meta_command)
+            if base_command:
+                meta_command.set_BaseMetaCommand(base_command)
+                meta_command.set_CommandContainer(command_container)
+                meta_command_set.add_MetaCommand(meta_command)
 
     def add_aggregate_types(self):
         """
