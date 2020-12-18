@@ -1467,7 +1467,7 @@ def parse_cli() -> argparse.Namespace:
     parser.add_argument('--spacesystem', type=str, default='airliner',
                         help='The name of the root spacesystem of the xtce file. Note that spacesystem is a synonym '
                              'for namespace')
-    parser.add_argument('--log_level', type=str, default='4', choices=['0', '1', '2', '3',
+    parser.add_argument('--log_level', type=str, default='0', choices=['0', '1', '2', '3',
                                                                        '4'],
                         help='[(0=SILENT), (1=ERRORS), (2=WARNINGS), (3=INFO), (4=DEBUG)]')
 
@@ -1501,7 +1501,7 @@ def set_log_level(log_level: str):
     logging.getLogger().name = 'xtce_generator'
 
 
-def generate_xtce(database_path: str, config_yaml: str, root_spacesystem: str = 'airliner', log_level: str = 'SILENT'):
+def generate_xtce(database_path: str, config_yaml: str, root_spacesystem: str = 'airliner', log_level: str = '0'):
     set_log_level(log_level)
 
     logging.info('Building xtce object...')
