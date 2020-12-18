@@ -1468,7 +1468,7 @@ def parse_cli() -> argparse.Namespace:
                              'for namespace')
     parser.add_argument('--log_level', type=str, default='4', choices=['0', '1', '2', '3',
                                                                        '4'],
-                        help='[(0=SILENT), (1=ERRORS), (2=WARNINGS), (3=INFO), (4=INFO)]')
+                        help='[(0=SILENT), (1=ERRORS), (2=WARNINGS), (3=INFO), (4=DEBUG)]')
 
     parser.add_argument('--config_yaml', type=str, default=None,
                         help='An option to pass in a config file to apply extra settings to the xtce generation such as'
@@ -1483,10 +1483,10 @@ def read_yaml(yaml_file: str) -> dict:
     return yaml_data
 
 
-logging_map = {'4': logging.DEBUG,
-               '3': logging.INFO,
+logging_map = {'1': logging.ERROR,
                '2': logging.WARNING,
-               '1': logging.ERROR,
+               '3': logging.INFO,
+               '4': logging.DEBUG,
                }
 
 
