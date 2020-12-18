@@ -754,11 +754,9 @@ class XTCEManager:
                          self[namespace].get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType() if
                          aggregate_name.get_name() == type_name]
 
-                # There should only be one type in the list.
+                #FIXME: There should only be one type in the list.
                 if len(types) > 0:
-                    print('type-->', types)
                     out_arg_type_ref = types[0]
-        print(f'looking for {type_name}')
 
         return out_arg_type_ref
 
@@ -1274,9 +1272,6 @@ class XTCEManager:
             if field_multiplcity > 0:
                 size_of_symbol *= field_multiplcity
             out_length += size_of_symbol
-
-            if symbol_id == 688:
-                print(f'length{out_length}')
 
         if out_length < self.custom_config['global']['CommandMetaData']['BaseContainer']['size'] / 8:
             out_length += int(self.custom_config['global']['CommandMetaData']['BaseContainer']['size'] / 8 - out_length)
