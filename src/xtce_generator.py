@@ -1466,10 +1466,9 @@ def parse_cli() -> argparse.Namespace:
     parser.add_argument('--spacesystem', type=str, default='airliner',
                         help='The name of the root spacesystem of the xtce file. Note that spacesystem is a synonym '
                              'for namespace')
-    parser.add_argument('--log_level', type=str, default='DEBUG', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR',
-                                                                           'CRITICAL', 'SILENT'],
-                        help='The name of the root spacesystem of the xtce file. Note that spacesystem is a synonym '
-                             'for namespace')
+    parser.add_argument('--log_level', type=str, default='4', choices=['0', '1', '2', '3',
+                                                                       '4'],
+                        help='[(0=SILENT), (1=ERRORS), (2=WARNINGS), (3=INFO), (4=INFO)]')
 
     parser.add_argument('--config_yaml', type=str, default=None,
                         help='An option to pass in a config file to apply extra settings to the xtce generation such as'
@@ -1484,20 +1483,21 @@ def read_yaml(yaml_file: str) -> dict:
     return yaml_data
 
 
-logging_map = {'DEBUG': logging.DEBUG,
-               'INFO': logging.INFO,
-               'WARNING': logging.WARNING,
-               'ERROR': logging.ERROR,
-               'CRITICAL': logging.CRITICAL,
+logging_map = {'4': logging.DEBUG,
+               '3': logging.INFO,
+               '2': logging.WARNING,
+               '1': logging.ERROR,
                }
 
 
 def set_log_level(log_level: str):
-    if log_level == 'SILENT':
+    if log_level == '0':
         for key, level in logging_map.items():
             logging.disable(level)
     else:
         logging.getLogger().setLevel(logging_map[log_level])
+
+    logging.getLogger().name = 'xtce_generator'
 
 
 def generate_xtce(database_path: str, config_yaml: str, root_spacesystem: str = 'airliner', log_level: str = 'SILENT'):
