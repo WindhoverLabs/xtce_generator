@@ -1407,13 +1407,14 @@ class XTCEManager:
         """
         for module_id in set(self.db_cursor.execute('select module from telemetry').fetchall()):
             module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
-            logging.debug(f'current module{module}')
+            logging.info(f'Adding telemetry containers to namesapace "{module[1]}".')
             self.add_telemetry_containers(module[1], module[0],
                                           self.custom_config['global']['TelemetryMetaData']['BaseContainer'][
                                               'container_ref'])
 
         for module_id in set(self.db_cursor.execute('select module from commands').fetchall()):
             module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
+            logging.info(f'Adding command containers to namesapce "{module[1]}"')
             self.add_command_containers(module[1], module[0],
                                         self.custom_config['global']['CommandMetaData']['BaseContainer'][
                                             'container_ref'])
@@ -1515,13 +1516,13 @@ def generate_xtce(database_path: str, config_yaml: str, root_spacesystem: str = 
     logging.info('Adding base_types to xtce...')
     xtce_obj.add_base_types()
 
-    # FIXME:add_symbols is not complete yet.
-    logging.info('Adding symbols...')
+    logging.info('Adding aggregate types to xtce...')
 
     xtce_obj.add_aggregate_types()
 
     logging.info('Writing xtce object to file...')
     xtce_obj.write_to_file(namespace=root_spacesystem)
+    logging.info(f'XTCE file has been written to "{xtce_obj.output_file.name}"')
 
 
 def main():
