@@ -1208,7 +1208,7 @@ class XTCEManager:
                     if self.__aggrregate_paramtype_exists(symbol[2], module_name) is False:
                         base_paramtype_set.add_AggregateParameterType(aggregate_type)
 
-                telemetry_param = xtce.ParameterType(name=aggregate_type.get_name() + '_param',
+                telemetry_param = xtce.ParameterType(name=aggregate_type.get_name(),
                                                      parameterTypeRef=aggregate_type.get_name())
 
                 container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
@@ -1374,7 +1374,7 @@ class XTCEManager:
                     # If the list is not flattened, then YAMCS does not allow us to send the command from the Web Interface
                     for member in self.__extract_members_from_aggregate_argtype(aggregate_type,
                                                                                 module_name).get_Member():
-                        command_arg = xtce.ArgumentType(name=member.get_name() + '_arg',
+                        command_arg = xtce.ArgumentType(name=member.get_name(),
                                                         argumentTypeRef=member.get_typeRef())
                         container_entry_list.add_ArgumentRefEntry(
                             xtce.ArgumentArgumentRefEntryType(argumentRef=command_arg.get_name()))
