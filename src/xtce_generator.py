@@ -59,6 +59,7 @@ class XTCEManager:
         self.parameter_type_set = xtce.ParameterTypeSetType()
         self.argument_type_set = xtce.ArgumentTypeSetType()
 
+        # FIXME: Shouldn't be opening files in the constructor. Will revisit.
         os.makedirs(destination_dir, exist_ok=True)
         file_name = os.path.join(destination_dir, file_name)
         self.output_file = open(file_name, 'w+')
@@ -765,7 +766,7 @@ class XTCEManager:
                          self[namespace].get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType() if
                          aggregate_name.get_name() == type_name]
 
-                #FIXME: There should only be one type in the list.
+                # FIXME: There should only be one type in the list.
                 if len(types) > 0:
                     out_arg_type_ref = types[0]
 
@@ -904,7 +905,8 @@ class XTCEManager:
                         logging.debug(f'child symbol-->{child_symbol}')
                         child = self.__get_aggregate_paramtype(child_symbol, module_name)
                         if self.__aggrregate_paramtype_exists(child_symbol[2], module_name) is False:
-                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(child)
+                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
+                                child)
                         type_ref_name = child.get_name()
 
                 else:
@@ -968,7 +970,8 @@ class XTCEManager:
                         logging.debug(f'field id-->{field_id})')
                         child = self.__get_aggregate_paramtype(child_symbol, module_name)
                         if self.__aggrregate_paramtype_exists(child_symbol[2], module_name) is False:
-                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(child)
+                            self[module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
+                                child)
                         type_ref_name = child.get_name()
                 else:
                     type_ref_name = 'BaseType/UNKNOWN'
@@ -1076,7 +1079,8 @@ class XTCEManager:
                         logging.debug(f'child symbol-->{child_symbol}')
                         child = self.__get_aggregate_argtype(child_symbol, module_name, False)
                         if self.__aggrregate_argtype_exists(child_symbol[2], module_name) is False:
-                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(child)
+                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(
+                                child)
                         type_ref_name = child.get_name()
                 else:
                     type_ref_name = 'BaseType/UNKNOWN'
@@ -1139,7 +1143,8 @@ class XTCEManager:
                         logging.debug(f'field id-->{field_id})')
                         child = self.__get_aggregate_argtype(child_symbol, module_name, False)
                         if self.__aggrregate_argtype_exists(child_symbol[2], module_name) is False:
-                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(child)
+                            self[module_name].get_CommandMetaData().get_ArgumentTypeSet().add_AggregateArgumentType(
+                                child)
                         type_ref_name = child.get_name()
 
                 else:
@@ -1376,7 +1381,7 @@ class XTCEManager:
                 logging.debug(f'symbol{symbol} for tlm:{command_name}')
 
                 aggregate_type = self.__get_aggregate_argtype(symbol, module_name,
-                                                               header_size=self.__get_command_base_container_length())
+                                                              header_size=self.__get_command_base_container_length())
 
                 if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
                     if self.__aggrregate_argtype_exists(symbol[2], module_name) is False:
@@ -1476,16 +1481,14 @@ def parse_cli() -> argparse.Namespace:
 
     parser.add_argument('--sqlite_path', type=str,
                         help='The file path to the sqlite database', required=True)
-    parser.add_argument('--spacesystem', type=str, default='airliner',
-                        help='The name of the root spacesystem of the xtce file. Note that spacesystem is a synonym '
-                             'for namespace')
     parser.add_argument('--log_level', type=str, default='0', choices=['0', '1', '2', '3',
                                                                        '4'],
                         help='[(0=SILENT), (1=ERRORS), (2=WARNINGS), (3=INFO), (4=DEBUG)]')
 
-    parser.add_argument('--config_yaml', type=str, default=None,
-                        help='An option to pass in a config file to apply extra settings to the xtce generation such as'
-                             'mapping an Aggregate Type to a base type, or to another aggregate type altogether')
+    parser.add_argument('--config_yaml', type=str, required=True,
+                        help='An config file to apply extra settings to the xtce generation such as'
+                             'mapping an Aggregate Type to a base type, or to another aggregate type altogether. This'
+                             'is where the root spacesystem is defined as well.')
     parser.add_argument('--output_dir', type=str, default=None,
                         help='The directory to write the output xtce file to. The default is the current directory.')
 
@@ -1560,7 +1563,10 @@ def main():
     else:
         config_data = None
 
-    generate_xtce(args.sqlite_path, config_data, args.output_dir, args.spacesystem, args.log_level)
+    if 'root_spacesystem' in config_data:
+        generate_xtce(args.sqlite_path, config_data, args.output_dir, config_data['root_spacesystem'], args.log_level)
+    else:
+        logging.error(f'No root_spacesystem key found in configuration "{args.config_yaml}"')
 
 
 if __name__ == '__main__':
