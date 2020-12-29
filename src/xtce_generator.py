@@ -1543,7 +1543,7 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
     logging.info('Writing xtce object to file...')
     xtce_obj.write_to_file(namespace=root_spacesystem)
 
-    logging.info(f'XTCE file has been written to "{xtce_obj.output_file.name}"')
+    logging.info(f'XTCE file has been written to "{xtce_obj.output_file}"')
 
 
 def main():
