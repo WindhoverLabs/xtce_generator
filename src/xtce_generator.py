@@ -571,21 +571,70 @@ class XTCEManager:
         self.__add_telemetry_base_types()
         self.__add_commands_base_types()
 
+    def __get_all_arg_basetypes(self) -> set([xtce.NameDescriptionType]):
+        """
+        Get all base types names in BASE_TYPE_NAMESAPCE. Do note that the base type names returned do not have the
+        namesapce include in them. In other words, even though the absolute reference path to 'int16_LE' is
+        'BASE_TYPE_NAMESAPCE/int16_LE', this function will return 'int16_LE' for that type. As the name suggests,
+        this function only returns type names that are *ArgumentTypes.
+        """
+        all_types = self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_IntegerArgumentType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_FloatArgumentType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_BooleanArgumentType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_StringArgumentType()
+
+        all_type_names = []
+
+        for type in all_types:
+            all_type_names.append(type.get_name())
+
+        return set(all_type_names)
+
+    def __get_all_param_basetypes(self):
+        """
+        Get all base types names in BASE_TYPE_NAMESAPCE. Do note that the base type names returned do not have the
+        namesapce include in them. In other words, even though the absolute reference path to 'int16_LE' is
+        'BASE_TYPE_NAMESAPCE/int16_LE', this function will return 'int16_LE' for that type. As the name suggests,
+        this function only returns type names that are *ParameterTypes.
+        """
+        all_types = self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_IntegerParameterType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_FloatParameterType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_BooleanParameterType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_StringParameterType()
+
+        all_type_names = []
+
+        for type in all_types:
+            all_type_names.append(type.get_name())
+
+        return set(all_type_names)
+
+
     def __get_all_basetypes(self) -> set([xtce.NameDescriptionType]):
         """
-        Get all base types in BASE_TYPE_NAMESAPCE.
+        Get all base types names in BASE_TYPE_NAMESAPCE. Do note that the base type names returned do not have the
+        namesapce include in them. In other words, even though the absolute reference path to 'int16_LE' is
+        'BASE_TYPE_NAMESAPCE/int16_LE', this function will return 'int16_LE' for that type. This does mean that this function
+        makes no distinction between Argument Types and Parameter Types. If you are interested in *ArgumentTypes or
+        *ParameterTypes specifically then look at the __get_all_arg_basetypes and __get_all_arg_basetypes functions.
+
+        :return: A set of type names.
         """
-        # FIXME: Maybe I should opt for a more readable solution (?)
-        return set([type.get_name() for type in
-                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_IntegerParameterType() +
-                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_IntegerArgumentType() +
-                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_FloatParameterType() +
-                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_FloatArgumentType() +
-                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_BooleanParameterType() +
-                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_BooleanArgumentType() +
-                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_StringParameterType() +
+        all_types = self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_IntegerParameterType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_IntegerArgumentType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_FloatParameterType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_FloatArgumentType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_BooleanParameterType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_BooleanArgumentType() +\
+                    self[self.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().get_StringParameterType() +\
                     self[self.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().get_StringArgumentType()
-                    ])
+
+        all_type_names = []
+
+        for type in all_types:
+            all_type_names.append(type.get_name())
+
+        return set(all_type_names)
 
 
     def __basetype_exists(self, type_name)-> bool:
@@ -594,6 +643,22 @@ class XTCEManager:
         name without the namesapce. For example "string320_LE", NOT "BaseType/string320_LE".
         """
         return type_name in self.__get_all_basetypes()
+
+    def __arg_basetype_exists(self, type_name)-> bool:
+        """
+        Checks if the base type with type_name exists in the BaseType namesapce. type_name is assumed to just be the type
+        name without the namesapce. For example "string320_LE", NOT "BaseType/string320_LE". As the function name suggests,
+        onyl *ArgumentTypes are checked.
+        """
+        return type_name in self.__get_all_arg_basetypes()
+
+    def __param_basetype_exists(self, type_name)-> bool:
+        """
+        Checks if the base type with type_name exists in the BaseType namesapce. type_name is assumed to just be the type
+        name without the namesapce. For example "string320_LE", NOT "BaseType/string320_LE". As the function name suggests,
+        onyl *ParameterTypes are checked.
+        """
+        return type_name in self.__get_all_param_basetypes()
 
     def __get_basetype_name(self, basename: str, bit_size: int, little_endian: bool):
         """
@@ -1121,11 +1186,6 @@ class XTCEManager:
                     does_aggregate_exist = True
 
         return does_aggregate_exist
-
-    def __basetype_exists(self, type_name):
-        """
-        Checks if the base type with name of type_name exists in our BaseType namesapce.
-        """
 
 
     def __get_aggregate_argtype(self, symbol_record: tuple, module_name: str,
