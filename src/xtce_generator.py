@@ -1086,13 +1086,16 @@ class XTCEManager:
                         type_ref_name = child.get_name()
 
                     if self.__is__symbol_string(field_type) is True:
+                        # FIXME: Don't love the way I'm handling this, looks kind of ugly and wack. Will revise.
                         endianness_postfix = self.__get_endianness_postfix(field_little_endian)
-                        string_type = 'string' + str(field_multiplicity * 8)+ endianness_postfix
-                        if self.__basetype_exists(string_type) is False:
+                        string_type_name = 'string' + str(field_multiplicity * 8)+ endianness_postfix
+                        if self.__param_basetype_exists(string_type_name) is False:
                             # Create a string type if it does not exist.
                             new_string_type = self.__get_string_paramtype(field_multiplicity * 8, field_little_endian)
                             self[XTCEManager.BASE_TYPE_NAMESAPCE].get_TelemetryMetaData().get_ParameterTypeSet().add_StringParameterType(new_string_type)
                             type_ref_name = XTCEManager.BASE_TYPE_NAMESAPCE + '/' + new_string_type.get_name()
+                        else:
+                            type_ref_name = XTCEManager.BASE_TYPE_NAMESAPCE + '/' + string_type_name
                         # If the field is a string, then it is a special kind of array that ends in a null terminator.
 
                         member = xtce.MemberType()
@@ -1273,17 +1276,20 @@ class XTCEManager:
                         type_ref_name = child.get_name()
 
                     if self.__is__symbol_string(field_type) is True:
+                        # FIXME: Don't love the way I'm handling this, looks kind of ugly and wack. Will revise.
                         endianness_postfix = self.__get_endianness_postfix(field_little_endian)
-                        string_type = 'string' + str(field_multiplicity * 8)+ endianness_postfix
-                        if self.__basetype_exists(string_type) is False:
+                        string_type_name = 'string' + str(field_multiplicity * 8)+ endianness_postfix
+                        if self.__arg_basetype_exists(string_type_name) is False:
                             # Create a string type if it does not exist.
                             new_string_type = self.__get_string_argtype(field_multiplicity * 8, field_little_endian)
                             self[
                                 XTCEManager.BASE_TYPE_NAMESAPCE].get_CommandMetaData().get_ArgumentTypeSet().add_StringArgumentType(
                                 new_string_type)
                             type_ref_name = XTCEManager.BASE_TYPE_NAMESAPCE + '/' + new_string_type.get_name()
-                        # If the field is a string, then it is a special kind of array that ends in a null terminator.
+                        else:
+                            type_ref_name = XTCEManager.BASE_TYPE_NAMESAPCE + '/' + string_type_name
 
+                        # If the field is a string, then it is a special kind of array that ends in a null terminator.
                         member = xtce.MemberType()
                         member.set_name(f'{field_name}')
                         member.set_typeRef(type_ref_name)
