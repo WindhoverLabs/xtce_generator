@@ -1307,7 +1307,7 @@ class XTCEManager:
                             logging.debug(f'child symbol-->{child_symbol}')
 
                             member = xtce.MemberType()
-                            member.set_name(f'{field_name}_{index}]_')
+                            member.set_name(f'{field_name}_{index}_')
                             member.set_typeRef(type_ref_name)
                             member_list.add_Member(member)
 
