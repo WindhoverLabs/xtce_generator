@@ -506,6 +506,10 @@ class XTCEManager:
             xtce.IntegerParameterType(name=XTCEManager.UNKNOWN_TYPE, signed=False, sizeInBits='32'))
         base_set.add_BooleanParameterType(
             xtce.BooleanParameterType(name='boolean8_LE', IntegerDataEncoding=xtce.IntegerDataEncodingType()))
+        base_set.add_BooleanParameterType(
+            xtce.BooleanParameterType(name='boolean8_BE', IntegerDataEncoding=xtce.IntegerDataEncodingType(sizeInBits=8,
+                                                                   bitOrder=xtce.BitOrderType.MOST_SIGNIFICANT_BIT_FIRST,
+                                                                   encoding=xtce.IntegerEncodingType.TWOS_COMPLEMENT)))
 
         # Add string type
         size_in_bits = xtce.SizeInBitsType()
@@ -686,7 +690,8 @@ class XTCEManager:
         for now.
         """
         # FIXME: This name assembling should be in a function to avoid code duplication and silly mistakes
-        typename = basename + str(bit_size) + '_LE' if little_endian else '_BE'
+
+        typename = basename + str(bit_size) + ('_LE' if little_endian else '_BE')
         out_type_ref = None
         all_basetypes = self.__get_all_basetypes()
         logging.debug(f'all base types-->{all_basetypes}')
