@@ -1384,6 +1384,10 @@ class XTCEManager:
         :return: The size of the telemetry header in bits.
         """
         offsets = self.db_cursor.execute('select byte_offset from fields where symbol=?', (symblold_id,)).fetchall()
+        if type(offsets) != list or not offsets:
+            logging.error(f'symbol {symblold_id} has no fields defined.')
+            return None
+        
         offsets.sort()
         return offsets[1]
 
@@ -1528,6 +1532,11 @@ class XTCEManager:
         for member in aggregate.get_MemberList().get_Member():
             type_ref = member.get_typeRef()
             new_member = xtce.MemberType()
+            print("1 **********************************")
+            print(member)
+            print(type_ref)
+            print(namesapce)
+            print("2 **********************************")
             arg_type = self.__get_argtype_from_typeref(type_ref, namesapce)
             if arg_type == RefType.BaseType:
                 new_member.set_name(member.get_name())
@@ -1588,10 +1597,16 @@ class XTCEManager:
             for symbol in self.db_cursor.execute('select * from symbols where id=?',
                                                  (command_symbol_id,)).fetchall():
                 logging.debug(f'symbol{symbol} for tlm:{command_name}')
+                
 
                 aggregate_type = self.__get_aggregate_argtype(symbol, module_name,
                                                               header_size=self.__get_command_base_container_length())
 
+                print("Symbol **********************************")
+                print(symbol)
+                print(aggregate_type)
+                print("  **********************************")
+                
                 if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
                     if self.__aggrregate_argtype_exists(symbol[2], module_name) is False:
                         base_argtype_set.add_AggregateArgumentType(aggregate_type)
