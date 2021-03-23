@@ -1,4 +1,5 @@
 root_spacesystem: cfs #Used to assemble the output file name for now.
+cpu_id: cpd #useful for obc builds
 
 # The global settings affect every namespace except for the root namespace/spacesystem since the root spacesystem is
 # merely used as an abstraction that may represent anything such as a vehicle, particular mission or even a hardware

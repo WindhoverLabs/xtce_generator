@@ -21,6 +21,10 @@ from enum import Enum
 import sys
 import os
 
+# FIXME:Not sure if I shhould move these to another file. Especially given the fact there will be more constants in the future.
+_ROOT_SPACESYSTEM_KEY = "root_spacesystem"
+_CPU_ID_KEY = "cpu_id"
+
 
 # TODO:Implementation to enable nesting of spacesystems beyond depth of root+1
 # class NameSpace(xtce.SpaceSystemType):
@@ -31,7 +35,7 @@ import os
 #                                         operationalStatus, base, Header, TelemetryMetaData,
 #                                         CommandMetaData,
 #                                         ServiceSet, SpaceSystem, gds_collector_,**kwargs_)
-#         self.__namespace_dict = dict({name: super(NameSpace, self).get_SpaceSystem()}) if name else dict({})
+#         self.__namespace_dict = dict({name:self})
 #
 #     def __getitem__(self, key: str):
 
@@ -50,7 +54,7 @@ class XTCEManager:
     BASE_TYPE_NAMESAPCE = 'BaseType'
     NAMESPACE_SEPARATOR = '/'
 
-    def __init__(self, root_space_system: str, file_path: str, sqlite_path: str, config: dict):
+    def __init__(self, root_space_system: str, file_path: str, sqlite_path: str, config: dict, cpu_id: str = None):
         """
         Instantiates a XTCEManager instance. An XTCEManager is a class that manages an xtce class internally
         and provides utilities such as serialization tools(through the write_to_file method) and functionality
@@ -65,8 +69,19 @@ class XTCEManager:
         :param sqlite_path: The file path to the sqlite database that XTCE will be generated from.
         :param config: An optional configuration dict to configure things like parent containers. Very useful for
         decoupling protocols such as CCSDS and MAVLink in a ground system.
+        :param cpu_id: The id of the flight computer(CPD, PPD, etc).
         """
         self.root = xtce.SpaceSystemType(name=root_space_system)
+
+        #This is a horrid hack, I know. Will try to come up with something more elegant.
+        #The problem is sometimes CPU_ID is present, sometimes it is not.
+        self.nested_root = False
+        if cpu_id:
+            # FIXME:This will work, but it's really wack. We should be using nested namespaces(?)
+            self.nested_root = True
+            self.root.add_SpaceSystem(xtce.SpaceSystemType(name=cpu_id))
+            self.root = self.root.get_SpaceSystem()[len(self.root.get_SpaceSystem())-1]
+
         self.telemetry_metadata = xtce.TelemetryMetaDataType()
         self.command_metadata = xtce.CommandMetaDataType()
         self.parameter_type_set = xtce.ParameterTypeSetType()
@@ -74,7 +89,6 @@ class XTCEManager:
         self.output_file = Path(file_path)
         self.telemetry_metadata.set_ParameterTypeSet(self.parameter_type_set)
         self.command_metadata.set_ArgumentTypeSet(self.argument_type_set)
-
         self.root.set_TelemetryMetaData(self.telemetry_metadata)
         self.root.set_CommandMetaData(self.command_metadata)
 
@@ -1712,12 +1726,32 @@ class XTCEManager:
         :return:
         """
         xtce_file = open(self.output_file, 'w+')
-        self[namespace].export(xtce_file, 0, namespacedef_='xmlns:xml="http://www.w3.org/XML/1998/namespace" '
+
+        # Like I said before; this is a horrid, horrid hack and will try to come up with a much more elegant solution.
+        if self.nested_root:
+            out_root = xtce.SpaceSystemType(name=self.custom_config[_ROOT_SPACESYSTEM_KEY])
+            out_root.add_SpaceSystem(self[namespace])
+
+        else:
+            out_root = self[namespace]
+
+        out_root.export(xtce_file, 0, namespacedef_='xmlns:xml="http://www.w3.org/XML/1998/namespace" '
                                                            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
                                                            'xmlns:xtce="http://www.omg.org/spec/XTCE/20180204" '
                                                            'xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 SpaceSystem.xsd "',
                                namespaceprefix_='xtce:')
 
+    def resolve_root_sapcesystem(config_data: dict):
+        root_space_system = None
+        if _ROOT_SPACESYSTEM_KEY in config_data:
+            if _CPU_ID_KEY in config_data:
+                root_space_system = f"{config_data[_ROOT_SPACESYSTEM_KEY]}" \
+                                    f"{XTCEManager.NAMESPACE_SEPARATOR}" \
+                                    f"{config_data[_CPU_ID_KEY]}"
+        else:
+            logging.error(f'No {_ROOT_SPACESYSTEM_KEY} key found in configuration ')
+
+        return root_space_system
 
 def parse_cli() -> argparse.Namespace:
     """
@@ -1767,7 +1801,7 @@ def set_log_level(log_level: str):
 
 
 def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_spacesystem: str = 'airliner',
-                  log_level: str = '0'):
+                  log_level: str = '0', cpu_id: str= None):
     """
     Generate an xtce file from the database at database_path. This database is assumed to have
     been generated by juicer. To read about more about juicer, look at [1]. It should at least comply with the schema
@@ -1778,13 +1812,14 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
     :param config_yaml: An optional configuration YAML file that can be used to configure the xtce file. This is
     particularly useful for mapping parent container in the xtce file.
     :param root_spacesystem: The name of the root spacesystem that will be used in the output xtce file.
+    :param cpu_id: The id of the flight computer(CPD, PPD, etc).
     :param log_level:
     :return:
     """
     set_log_level(log_level)
 
     logging.info('Building xtce object...')
-    xtce_obj = XTCEManager(root_spacesystem, output_path, database_path, config_yaml)
+    xtce_obj = XTCEManager(root_spacesystem, output_path, database_path, config_yaml, cpu_id)
 
     logging.info('Adding base_types to xtce...')
     xtce_obj.add_base_types()
@@ -1798,8 +1833,11 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
     logging.info(f'XTCE file has been written to "{xtce_obj.output_file}"')
 
 
+
+
 def main():
     logging.info('Parsing CLI arguments...')
+
     args = parse_cli()
 
     if args.config_yaml:
@@ -1807,8 +1845,12 @@ def main():
     else:
         config_data = None
 
-    if 'root_spacesystem' in config_data:
-        generate_xtce(args.sqlite_path, config_data, args.output_path, config_data['root_spacesystem'], args.log_level)
+    if _ROOT_SPACESYSTEM_KEY in config_data:
+        if _CPU_ID_KEY in config_data:
+            cpu_id = config_data[_CPU_ID_KEY]
+            generate_xtce(args.sqlite_path, config_data, args.output_path, config_data[_ROOT_SPACESYSTEM_KEY], args.log_level, cpu_id=cpu_id)
+        else:
+            generate_xtce(args.sqlite_path, config_data, args.output_path, config_data[_ROOT_SPACESYSTEM_KEY],args.log_level)
     else:
         logging.error(f'No root_spacesystem key found in configuration "{args.config_yaml}"')
 
