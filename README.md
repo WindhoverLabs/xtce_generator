@@ -57,7 +57,7 @@ mvn yamcs:run
 
 ## XTCE Compliance
 
-In the future we will strive to be 100% xtce compliant. However, given that we use `yamcs` as our ground system, if there are quirks yamcs has we will be adhering to those quirks.
+In the future we will strive to be 100% xtce compliant. However, given that we use `yamcs` as our ground system, if there are quirks yamcs has we will be adhering to those quirks. For more info on this, you may go [here](https://docs.yamcs.org/yamcs-server-manual/mdb/loaders/xtce/).
 
 
 
