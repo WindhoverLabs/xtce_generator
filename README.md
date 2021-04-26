@@ -57,7 +57,7 @@ mvn yamcs:run
 
 ## XTCE Compliance
 
-In the future we will strive to be 100% xtce compliant. However, given that we use `yamcs` as our ground system, if there are quirks yamcs has we will be adhering to those quirks.
+In the future we will strive to be 100% xtce compliant. However, given that we use `yamcs` as our ground system, if there are quirks yamcs has we will be adhering to those quirks. For more info on this, you may go [here](https://docs.yamcs.org/yamcs-server-manual/mdb/loaders/xtce/).
 
 
 
@@ -80,4 +80,4 @@ After renaming that parameter, you are good to go!
 **NOTE: **Beware that if you do not change this, `yamcs` will *not* run.
 
 
-Documentation updated on October 5, 2020
+Documentation updated on March 23, 2021
