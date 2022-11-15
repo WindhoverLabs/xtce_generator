@@ -1073,6 +1073,18 @@ class XTCEManager:
                 if len(types) > 0:
                     does_aggregate_exist = True
 
+        # If it's not in this SpaceSystem, it might be on some other one.
+        else:
+            for s in self.root.get_SpaceSystem():
+                if self[s].get_TelemetryMetaData().get_ParameterTypeSet():
+                    types = [aggregate_name.get_name() for aggregate_name in
+                             self[s].get_TelemetryMetaData().get_ParameterTypeSet().get_AggregateParameterType()
+                             if
+                             aggregate_name.get_name() == type_name]
+
+                    if len(types) > 0:
+                        does_aggregate_exist = True
+
         return does_aggregate_exist
 
     def find_aggregate_param_type(self, type_name: str, namespace: str) -> Union[xtce.AggregateParameterType, None]:
