@@ -1887,6 +1887,35 @@ class XTCEManager:
                                         self.custom_config['global']['CommandMetaData']['BaseContainer'][
                                             'container_ref'])
 
+    def add_algorithms(self):
+        """
+        Iterate through all of the symbols in the database and add them to the TelemetryMetaDataType and
+        CommandMetaDataType children of our root SpaceSystem.
+        :return:
+        """
+        for module_id in set(self.db_cursor.execute('select module from telemetry').fetchall()):
+            module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
+            logging.info(f'Adding telemetry containers to namespace "{module[1]}".')
+
+            modules = []
+            self.__inspect_parent_modules(module[1], modules)
+            modules.reverse()
+            qualified_module_name = self.__get_qualified_namespace(modules)
+            self.add_telemetry_containers(qualified_module_name, module[0],
+                                          self.custom_config['global']['TelemetryMetaData']['BaseContainer'][
+                                              'container_ref'])
+
+        for module_id in set(self.db_cursor.execute('select module from commands').fetchall()):
+            module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
+            logging.info(f'Adding command containers to namespace "{module[1]}"')
+            modules = []
+            self.__inspect_parent_modules(module[1], modules)
+            modules.reverse()
+            qualified_module_name = self.__get_qualified_namespace(modules)
+            self.add_command_containers(qualified_module_name, module[0],
+                                        self.custom_config['global']['CommandMetaData']['BaseContainer'][
+                                            'container_ref'])
+
     def __get_namespace(self, namespace_name: str) -> xtce.SpaceSystemType:
         """
         Returns a namespace SpaceSystemType object that has the name of namespace_name.
@@ -2053,6 +2082,9 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
     xtce_obj.add_base_types()
 
     logging.info('Adding aggregate types to xtce...')
+    xtce_obj.add_aggregate_types()
+
+    logging.info('Adding Algorithms to xtce...')
     xtce_obj.add_aggregate_types()
 
     logging.info('Writing xtce object to file...')
