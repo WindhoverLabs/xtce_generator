@@ -1887,34 +1887,61 @@ class XTCEManager:
                                         self.custom_config['global']['CommandMetaData']['BaseContainer'][
                                             'container_ref'])
 
+
+    def add_algorithm(self, module_name: str, algo_name: str, language: str, script_text: str):
+        module_space_system = self[module_name]
+        module_space_system.get_TelemetryMetaData().set_AlgorithmSet(xtce.AlgorithmSetType())
+        algo =  xtce.InputOutputTriggerAlgorithmType(name=algo_name)
+        algo.set_AlgorithmText(xtce.AlgorithmTextType(language=language, valueOf_=script_text))
+        algo_inputs = xtce.InputSetType()
+        algo_outputs = xtce.OutputSetType()
+        algo_triggers = xtce.TriggerSetType()
+
+        for parameter_ref, input_name, algorithm in set(self.db_cursor.execute('select parameter_ref, input_name, algorithm '
+                                                                                    'from algorithm_inputs').fetchall()):
+
+            algo_inputs.add_InputParameterInstanceRef(xtce.InputParameterInstanceRefType(parameterRef=parameter_ref, inputName=input_name))
+
+        for parameter_ref, output_name, algorithm in set(self.db_cursor.execute('select parameter_ref, output_name, algorithm '
+                                                                                    'from algorithm_outputs').fetchall()):
+             algo_outputs.add_OutputParameterRef(xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
+
+        for parameter_ref, algorithm in set(self.db_cursor.execute('select parameter_ref, algorithm '
+                                                                                    'from algorithm_triggers').fetchall()):
+            algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
+
+
+        algo.set_InputSet(algo_inputs)
+        algo.set_OutputSet(algo_outputs)
+        algo.set_TriggerSet(algo_triggers)
+        module_space_system.get_TelemetryMetaData().get_AlgorithmSet().add_CustomAlgorithm(algo)
+
+
     def add_algorithms(self):
         """
         Iterate through all of the symbols in the database and add them to the TelemetryMetaDataType and
         CommandMetaDataType children of our root SpaceSystem.
         :return:
         """
-        for module_id in set(self.db_cursor.execute('select module from telemetry').fetchall()):
-            module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
-            logging.info(f'Adding telemetry containers to namespace "{module[1]}".')
+        for name, language, script_path, type, module_id in set(self.db_cursor.execute('select name, language, script_path, type, module '
+                                                                                    'from algorithms').fetchall()):
+            module_name = self.db_cursor.execute("select name from modules where id=?", (module_id,)).fetchone()[0]
+
+            # logging.info(f'Adding telemetry containers to namespace "{module[1]}".')
 
             modules = []
-            self.__inspect_parent_modules(module[1], modules)
+            self.__inspect_parent_modules(module_name, modules)
             modules.reverse()
             qualified_module_name = self.__get_qualified_namespace(modules)
-            self.add_telemetry_containers(qualified_module_name, module[0],
-                                          self.custom_config['global']['TelemetryMetaData']['BaseContainer'][
-                                              'container_ref'])
+            script_text = ""
+            with open(script_path) as f:
+                script_text = f.read()
 
-        for module_id in set(self.db_cursor.execute('select module from commands').fetchall()):
-            module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
-            logging.info(f'Adding command containers to namespace "{module[1]}"')
-            modules = []
-            self.__inspect_parent_modules(module[1], modules)
-            modules.reverse()
-            qualified_module_name = self.__get_qualified_namespace(modules)
-            self.add_command_containers(qualified_module_name, module[0],
-                                        self.custom_config['global']['CommandMetaData']['BaseContainer'][
-                                            'container_ref'])
+            self.add_algorithm(qualified_module_name, name, language, script_text)
+        # self.add_command_containers(qualified_module_name, module[0],
+        #                             self.custom_config['global']['CommandMetaData']['BaseContainer'][
+        #                                 'container_ref'])
+
 
     def __get_namespace(self, namespace_name: str) -> xtce.SpaceSystemType:
         """
@@ -2085,7 +2112,8 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
     xtce_obj.add_aggregate_types()
 
     logging.info('Adding Algorithms to xtce...')
-    xtce_obj.add_aggregate_types()
+    xtce_obj.add_algorithms()
+
 
     logging.info('Writing xtce object to file...')
     xtce_obj.write_to_file(namespace=root_spacesystem)

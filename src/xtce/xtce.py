@@ -1684,7 +1684,7 @@ class TelemetryMetaDataType(GeneratedsSuper):
         self.MessageSet_nsprefix_ = None
         self.StreamSet = StreamSet
         self.StreamSet_nsprefix_ = None
-        self.AlgorithmSet = AlgorithmSet
+        self.AlgorithmSet: AlgorithmSetType = AlgorithmSet
         self.AlgorithmSet_nsprefix_ = None
 
     def factory(*args_, **kwargs_):
