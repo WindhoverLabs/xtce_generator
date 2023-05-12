@@ -1904,7 +1904,7 @@ class XTCEManager:
 
         for parameter_ref, output_name, algorithm, output_type in set(self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
                                                                                     'from algorithm_outputs').fetchall()):
-             algo_outputs.add_OutputParameterRef(xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
+             algo_outputs.add_OutputParameterRef(xtce.OutputParameterRefType(parameterRef=output_name, outputName=output_name))
 
              symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
                                                   (output_type,)).fetchone()
