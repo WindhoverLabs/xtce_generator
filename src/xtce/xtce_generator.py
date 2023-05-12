@@ -1902,13 +1902,20 @@ class XTCEManager:
 
             algo_inputs.add_InputParameterInstanceRef(xtce.InputParameterInstanceRefType(parameterRef=parameter_ref, inputName=input_name))
 
-        for parameter_ref, output_name, algorithm in set(self.db_cursor.execute('select parameter_ref, output_name, algorithm '
+        for parameter_ref, output_name, algorithm, output_type in set(self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
                                                                                     'from algorithm_outputs').fetchall()):
              algo_outputs.add_OutputParameterRef(xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
+             symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                  (output_type,)).fetchone()
+             aggregate = self.__get_aggregate_paramtype(symbol, module_name, header_present=False)
+
+             module_space_system.get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(aggregate)
+
+
         for parameter_ref, algorithm in set(self.db_cursor.execute('select parameter_ref, algorithm '
-                                                                                    'from algorithm_triggers').fetchall()):
-            algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
+                                                                                            'from algorithm_triggers').fetchall()):
+                    algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
 
 
         algo.set_InputSet(algo_inputs)
