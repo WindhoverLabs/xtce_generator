@@ -1908,9 +1908,16 @@ class XTCEManager:
 
              symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
                                                   (output_type,)).fetchone()
-             aggregate = self.__get_aggregate_paramtype(symbol, module_name, header_present=False)
+             aggregate_type = self.__get_aggregate_paramtype(symbol, module_name, header_present=False)
 
-             module_space_system.get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(aggregate)
+             module_space_system.get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(aggregate_type)
+
+             if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
+                if self.__aggregate_paramtype_exists(symbol[2], module_name) is False:
+                    base_paramtype_set.add_AggregateParameterType(aggregate_type)
+                telemetry_param = xtce.ParameterType(name=parameter_ref,
+                                                     parameterTypeRef=aggregate_type.get_name())
+                module_space_system.get_TelemetryMetaData().get_ParameterSet().add_Parameter(telemetry_param)
 
 
         for parameter_ref, algorithm in set(self.db_cursor.execute('select parameter_ref, algorithm '
