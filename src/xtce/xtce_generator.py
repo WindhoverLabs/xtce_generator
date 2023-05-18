@@ -1937,24 +1937,22 @@ class XTCEManager:
         CommandMetaDataType children of our root SpaceSystem.
         :return:
         """
-        for name, language, script_path, type, module_id in set(self.db_cursor.execute('select name, language, script_path, type, module '
-                                                                                    'from algorithms').fetchall()):
+        for name, language, script_path, type, module_id in self.db_cursor.execute('select name, language, script_path, type, module '
+                                                                                    'from algorithms').fetchall():
             module_name = self.db_cursor.execute("select name from modules where id=?", (module_id,)).fetchone()[0]
 
-            # logging.info(f'Adding telemetry containers to namespace "{module[1]}".')
+
 
             modules = []
             self.__inspect_parent_modules(module_name, modules)
             modules.reverse()
             qualified_module_name = self.__get_qualified_namespace(modules)
             script_text = ""
+            logging.info(f'Adding algorithm to namespace "{qualified_module_name}".')
             with open(script_path) as f:
                 script_text = f.read()
 
             self.add_algorithm(qualified_module_name, name, language, script_text)
-        # self.add_command_containers(qualified_module_name, module[0],
-        #                             self.custom_config['global']['CommandMetaData']['BaseContainer'][
-        #                                 'container_ref'])
 
 
     def __get_namespace(self, namespace_name: str) -> xtce.SpaceSystemType:

@@ -19621,7 +19621,7 @@ class AlgorithmSetType(GeneratedsSuper):
     def set_ns_prefix_(self, ns_prefix):
         self.ns_prefix_ = ns_prefix
 
-    def get_CustomAlgorithm(self):
+    def get_CustomAlgorithm(self) -> ['SimpleAlgorithmType'] :
         return self.CustomAlgorithm
 
     def set_CustomAlgorithm(self, CustomAlgorithm):
