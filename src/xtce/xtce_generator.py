@@ -1897,23 +1897,22 @@ class XTCEManager:
         algo_inputs = xtce.InputSetType()
         algo_outputs = xtce.OutputSetType()
         algo_triggers = xtce.TriggerSetType()
-
         algorithm_id =  self.db_cursor.execute('select id from algorithms where name=?', (algo_name,)).fetchone()[0]
 
-        print(f"algorithm_id--------_>{algorithm_id}")
+        # Enforcing order by id here so that the XTCE output is in the same order the user expects it to be.
+        # Makes for a more uniformed user-experience as these algorithms are displayed in UIs such as YAMCS
         for parameter_ref, input_name, algorithm in self.db_cursor.execute('select parameter_ref, input_name, algorithm '
-                                       'from algorithm_inputs  where algorithm=?', (algorithm_id)).fetchall():
+                                       'from algorithm_inputs  where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_inputs.add_InputParameterInstanceRef(
                 xtce.InputParameterInstanceRefType(parameterRef=parameter_ref, inputName=input_name))
 
-        for parameter_ref, output_name, algorithm, output_type in set(
-                self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
-                                       'from algorithm_outputs where algorithm=?', (algorithm_id)).fetchall()):
+        for parameter_ref, output_name, algorithm, output_type in  self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
+                                       'from algorithm_outputs where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_outputs.add_OutputParameterRef(
                 xtce.OutputParameterRefType(parameterRef=output_name, outputName=output_name))
 
-        for parameter_ref, algorithm in set(self.db_cursor.execute('select parameter_ref, algorithm '
-                                                                   'from algorithm_triggers').fetchall()):
+        for parameter_ref, algorithm in self.db_cursor.execute('select parameter_ref, algorithm '
+                                                                   'from algorithm_triggers where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
 
 
