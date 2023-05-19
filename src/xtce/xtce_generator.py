@@ -1911,6 +1911,23 @@ class XTCEManager:
             algo_outputs.add_OutputParameterRef(
                 xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
+            # TODO:Need to handle the case when the type is non-aggregate. Basically is it a base type or not?
+            # symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+            #                                       (output_type,)).fetchone()
+            #
+            # aggregate_type = self.__get_aggregate_paramtype(symbol, module_name, header_present=False)
+            #
+            # module_space_system.get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
+            #     aggregate_type)
+            #
+            # if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
+            #     if self.__aggregate_paramtype_exists(symbol[2], module_name) is False:
+            #         base_paramtype_set.add_AggregateParameterType(aggregate_type)
+            #     telemetry_param = xtce.ParameterType(name=output_name,
+            #                                          parameterTypeRef=aggregate_type.get_name())
+            #     module_space_system.get_TelemetryMetaData().get_ParameterSet().add_Parameter(telemetry_param)
+
+
         for parameter_ref, algorithm in self.db_cursor.execute('select parameter_ref, algorithm '
                                                                    'from algorithm_triggers where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
