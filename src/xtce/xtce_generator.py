@@ -1909,7 +1909,7 @@ class XTCEManager:
         for parameter_ref, output_name, algorithm, output_type in  self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
                                        'from algorithm_outputs where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_outputs.add_OutputParameterRef(
-                xtce.OutputParameterRefType(parameterRef=output_name, outputName=output_name))
+                xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
         for parameter_ref, algorithm in self.db_cursor.execute('select parameter_ref, algorithm '
                                                                    'from algorithm_triggers where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
