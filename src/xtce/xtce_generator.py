@@ -1911,7 +1911,36 @@ class XTCEManager:
             algo_outputs.add_OutputParameterRef(
                 xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
-            # TODO:Need to handle the case when the type is non-aggregate. Basically is it a base type or not?
+            # if symbol_type:
+            #     logging.debug(f'symbol_type$$$$-->{symbol_type}')
+            #     base_type_val = self.__is_base_type(output_type)
+            #
+            #      TODO:Keeping it simple for now, not enum support for now
+            #     if self.__is__symbol_enum(field_type) is True:
+            #         if self.__enumeration_paramtype_exists(field_type, module_name) is True:
+            #             type_ref_name = self.__get_enum_from_symbol_id(field_type)
+            #
+            #         else:
+            #             new_enum = self.__get_enum_param_type(field_type)
+            #             self[
+            #                 module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_EnumeratedParameterType(
+            #                 new_enum)
+            #             type_ref_name = new_enum.get_name()
+            #
+            #     elif base_type_val[0]:
+            #         # This is a basetype, so we can just get a type from our BaseType namespace
+            #         # TODO: Make a distinction between unsigned and int types
+            #         type_ref_name = self.__get_basetype_name(base_type_val[1], symbol_type[3] * 8,
+            #                                                  self.is_little_endian(symbol_type[1]))
+
+
+
+
+
+
+
+
+            # # TODO:Need to handle the case when the type is non-aggregate. Basically is it a base type or not?
             # symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
             #                                       (output_type,)).fetchone()
             #
