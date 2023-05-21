@@ -873,8 +873,10 @@ class XTCEManager:
                 or type_name == 'int8' \
                 or type_name == 'int':
             out_base_type = (True, 'int')
+        # FIXME: All the standardized types in https://en.cppreference.com/w/cpp/types/integer should be added.
         elif type_name == 'uint8' \
                 or type_name == 'uint16' \
+                or type_name == 'uint16_t' \
                 or type_name == 'uint32' \
                 or type_name == 'unsigned int' \
                 or type_name == 'unsigned' \
