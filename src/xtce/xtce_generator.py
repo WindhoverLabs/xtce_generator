@@ -1890,7 +1890,7 @@ class XTCEManager:
                                             'container_ref'])
 
 
-    def __get_new_algorithm(self, module_name: str, algo_name: str, language: str, script_text: str):
+    def __get_new_algorithm(self, qualified_module_name: str, algo_name: str, language: str, script_text: str):
         """
         Creates a new algorithm called algo_name.
         """
@@ -1913,9 +1913,13 @@ class XTCEManager:
             algo_outputs.add_OutputParameterRef(
                 xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
+            symbol_type = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                 (output_type,)).fetchone()
+            base_type_val = self.__is_base_type(symbol_type[2])
+
             # if symbol_type:
             #     logging.debug(f'symbol_type$$$$-->{symbol_type}')
-            #     base_type_val = self.__is_base_type(output_type)
+            #
             #
             #      TODO:Keeping it simple for now, not enum support for now
             #     if self.__is__symbol_enum(field_type) is True:
@@ -1929,34 +1933,29 @@ class XTCEManager:
             #                 new_enum)
             #             type_ref_name = new_enum.get_name()
             #
-            #     elif base_type_val[0]:
-            #         # This is a basetype, so we can just get a type from our BaseType namespace
-            #         # TODO: Make a distinction between unsigned and int types
-            #         type_ref_name = self.__get_basetype_name(base_type_val[1], symbol_type[3] * 8,
-            #                                                  self.is_little_endian(symbol_type[1]))
+            if base_type_val[0]:
+                # TODO:Need to handle the case when the type is non-aggregate. Basically is it a base type or not?
+                # This is a basetype, so we can just get a type from our BaseType namespace
+                # TODO: Make a distinction between unsigned and int types
+                type_ref_name = self.__get_basetype_name(base_type_val[1], symbol_type[3] * 8,
+                                                         self.is_little_endian(symbol_type[1]))
+                algo_param = xtce.ParameterType(name=output_name,
+                                                parameterTypeRef=type_ref_name)
+            else:
+                symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                      (output_type,)).fetchone()
 
+                aggregate_type = self.__get_aggregate_paramtype(symbol, qualified_module_name, header_present=False)
 
+                if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
+                    if self.__aggregate_paramtype_exists(symbol[2], qualified_module_name) is False:
+                        self[
+                            qualified_module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
+                            aggregate_type)
+                algo_param = xtce.ParameterType(name=output_name,
+                                                parameterTypeRef=aggregate_type.get_name())
 
-
-
-
-
-
-            # # TODO:Need to handle the case when the type is non-aggregate. Basically is it a base type or not?
-            # symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
-            #                                       (output_type,)).fetchone()
-            #
-            # aggregate_type = self.__get_aggregate_paramtype(symbol, module_name, header_present=False)
-            #
-            # module_space_system.get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
-            #     aggregate_type)
-            #
-            # if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
-            #     if self.__aggregate_paramtype_exists(symbol[2], module_name) is False:
-            #         base_paramtype_set.add_AggregateParameterType(aggregate_type)
-            #     telemetry_param = xtce.ParameterType(name=output_name,
-            #                                          parameterTypeRef=aggregate_type.get_name())
-            #     module_space_system.get_TelemetryMetaData().get_ParameterSet().add_Parameter(telemetry_param)
+            self[qualified_module_name].get_TelemetryMetaData().get_ParameterSet().add_Parameter(algo_param)
 
 
         for parameter_ref, algorithm in self.db_cursor.execute('select parameter_ref, algorithm '
