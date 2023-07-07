@@ -873,8 +873,10 @@ class XTCEManager:
                 or type_name == 'int8' \
                 or type_name == 'int':
             out_base_type = (True, 'int')
+        # FIXME: All the standardized types in https://en.cppreference.com/w/cpp/types/integer should be added.
         elif type_name == 'uint8' \
                 or type_name == 'uint16' \
+                or type_name == 'uint16_t' \
                 or type_name == 'uint32' \
                 or type_name == 'unsigned int' \
                 or type_name == 'unsigned' \
@@ -1887,6 +1889,141 @@ class XTCEManager:
                                         self.custom_config['global']['CommandMetaData']['BaseContainer'][
                                             'container_ref'])
 
+
+    def __get_new_algorithm(self, qualified_module_name: str, algo_name: str, language: str, script_text: str):
+        """
+        Creates a new algorithm called algo_name.
+        """
+        algo = xtce.InputOutputTriggerAlgorithmType(name=algo_name)
+        algo.set_AlgorithmText(xtce.AlgorithmTextType(language=language, valueOf_=script_text))
+        algo_inputs = xtce.InputSetType()
+        algo_outputs = xtce.OutputSetType()
+        algo_triggers = xtce.TriggerSetType()
+        algorithm_id =  self.db_cursor.execute('select id from algorithms where name=?', (algo_name,)).fetchone()[0]
+
+        # Enforcing order by id here so that the XTCE output is in the same order the user expects it to be.
+        # Makes for a more uniformed user-experience as these algorithms are displayed in UIs such as YAMCS
+        for parameter_ref, input_name, algorithm in self.db_cursor.execute('select parameter_ref, input_name, algorithm '
+                                       'from algorithm_inputs  where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
+            algo_inputs.add_InputParameterInstanceRef(
+                xtce.InputParameterInstanceRefType(parameterRef=parameter_ref, inputName=input_name))
+
+        for parameter_ref, output_name, algorithm, output_type in  self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
+                                       'from algorithm_outputs where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
+            algo_outputs.add_OutputParameterRef(
+                xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
+
+            symbol_type = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                 (output_type,)).fetchone()
+            base_type_val = self.__is_base_type(symbol_type[2])
+
+            # if symbol_type:
+            #     logging.debug(f'symbol_type$$$$-->{symbol_type}')
+            #
+            #
+            #      TODO:Keeping it simple for now, not enum support for now
+            #     if self.__is__symbol_enum(field_type) is True:
+            #         if self.__enumeration_paramtype_exists(field_type, module_name) is True:
+            #             type_ref_name = self.__get_enum_from_symbol_id(field_type)
+            #
+            #         else:
+            #             new_enum = self.__get_enum_param_type(field_type)
+            #             self[
+            #                 module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_EnumeratedParameterType(
+            #                 new_enum)
+            #             type_ref_name = new_enum.get_name()
+            #
+            if base_type_val[0]:
+                # TODO:Need to handle the case when the type is non-aggregate. Basically is it a base type or not?
+                # This is a basetype, so we can just get a type from our BaseType namespace
+                # TODO: Make a distinction between unsigned and int types
+                type_ref_name = self.__get_basetype_name(base_type_val[1], symbol_type[3] * 8,
+                                                         self.is_little_endian(symbol_type[1]))
+                algo_param = xtce.ParameterType(name=output_name,
+                                                parameterTypeRef=type_ref_name)
+            else:
+                symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
+                                                      (output_type,)).fetchone()
+
+                aggregate_type = self.__get_aggregate_paramtype(symbol, qualified_module_name, header_present=False)
+
+                if aggregate_type and len(aggregate_type.get_MemberList().get_Member()) > 0:
+                    if self.__aggregate_paramtype_exists(symbol[2], qualified_module_name) is False:
+                        self[
+                            qualified_module_name].get_TelemetryMetaData().get_ParameterTypeSet().add_AggregateParameterType(
+                            aggregate_type)
+                algo_param = xtce.ParameterType(name=output_name,
+                                                parameterTypeRef=aggregate_type.get_name())
+
+            self[qualified_module_name].get_TelemetryMetaData().get_ParameterSet().add_Parameter(algo_param)
+
+
+        for parameter_ref, algorithm in self.db_cursor.execute('select parameter_ref, algorithm '
+                                                                   'from algorithm_triggers where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
+            algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
+
+
+        algo.set_InputSet(algo_inputs)
+        algo.set_OutputSet(algo_outputs)
+        algo.set_TriggerSet(algo_triggers)
+        return algo
+
+    def __add_algorithm(self, module_name: str, algo_name: str, language: str, script_text: str):
+        module_space_system = self[module_name]
+
+        for module_id in set(self.db_cursor.execute('select module from algorithms').fetchall()):
+            module = self.db_cursor.execute('select id, name from modules where id=?', (module_id[0],)).fetchone()
+            logging.info(f'Adding telemetry containers to namespace "{module[1]}".')
+
+        algo = self.__get_new_algorithm(module_name, algo_name, language, script_text)
+
+        module_space_system.get_TelemetryMetaData().get_AlgorithmSet().add_CustomAlgorithm(algo)
+
+    def __add_algorithms_to_module(self, algorithm_module_id: int):
+        module_name = self.db_cursor.execute("select name from modules where id=?", (algorithm_module_id,)).fetchone()[0]
+        modules = []
+        self.__inspect_parent_modules(module_name, modules)
+        modules.reverse()
+        qualified_module_name = self.__get_qualified_namespace(modules)
+        module_space_system = self[qualified_module_name]
+        module_space_system.get_TelemetryMetaData().set_AlgorithmSet(xtce.AlgorithmSetType())
+        for name, language, script_path, type, module_id in self.db_cursor.execute(
+                'select name, language, script_path, type, module '
+                'from algorithms where module=?', (algorithm_module_id,)).fetchall():
+            script_text = ""
+            logging.info(f'Adding algorithm to namespace "{qualified_module_name}".')
+            with open(script_path) as f:
+                script_text = f.read()
+
+            self.__add_algorithm(qualified_module_name, name, language, script_text)
+
+    def add_algorithms(self):
+        """
+        Iterate through all of the symbols in the database and add them to the TelemetryMetaDataType and
+        CommandMetaDataType children of our root SpaceSystem.
+        :return:
+        """
+        for module_id in self.db_cursor.execute("select id from modules").fetchall():
+            # print(f"module_id****************8:{module_id}")
+            self.__add_algorithms_to_module(module_id[0])
+
+        # for name, language, script_path, type, module_id in self.db_cursor.execute('select name, language, script_path, type, module '
+        #                                                                             'from algorithms').fetchall():
+        #     module_name = self.db_cursor.execute("select name from modules where id=?", (module_id,)).fetchone()[0]
+        #     modules = []
+        #     self.__inspect_parent_modules(module_name, modules)
+        #     modules.reverse()
+        #     qualified_module_name = self.__get_qualified_namespace(modules)
+        #     module_space_system = self[qualified_module_name]
+        #     module_space_system.get_TelemetryMetaData().set_AlgorithmSet(xtce.AlgorithmSetType())
+        #     script_text = ""
+        #     logging.info(f'Adding algorithm to namespace "{qualified_module_name}".')
+        #     with open(script_path) as f:
+        #         script_text = f.read()
+        #
+        #     self.__add_algorithm(qualified_module_name, name, language, script_text)
+
+
     def __get_namespace(self, namespace_name: str) -> xtce.SpaceSystemType:
         """
         Returns a namespace SpaceSystemType object that has the name of namespace_name.
@@ -2054,6 +2191,10 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
 
     logging.info('Adding aggregate types to xtce...')
     xtce_obj.add_aggregate_types()
+
+    logging.info('Adding Algorithms to xtce...')
+    xtce_obj.add_algorithms()
+
 
     logging.info('Writing xtce object to file...')
     xtce_obj.write_to_file(namespace=root_spacesystem)
