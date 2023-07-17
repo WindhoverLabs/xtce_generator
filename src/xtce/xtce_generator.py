@@ -886,7 +886,7 @@ class XTCEManager:
         # FIXME: char types need to be handled properly
         elif type_name == 'char':
             out_base_type = (True, 'int')
-        elif type_name == 'boolean':
+        elif type_name == 'boolean' or type_name == 'bool':
             out_base_type = (True, 'boolean')
         elif type_name == 'float' or type_name == 'double':
             out_base_type = (True, 'float')
