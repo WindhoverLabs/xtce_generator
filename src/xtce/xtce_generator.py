@@ -1192,7 +1192,8 @@ class XTCEManager:
         # FIXME: This entire function needs to be decoupled; it's far too big
         out_param = xtce.AggregateParameterType(name=symbol_record[2])
 
-        if out_param.get_name() == "PX4_PositionSetpointTripletMsg_t":
+        if out_param.get_name() == "PX4_PositionSetpoint_t":
+            header_present = False
             print("break")
 
         # If the symbol exists already in our xtce, we don't need to explore it any further
