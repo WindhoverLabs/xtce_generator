@@ -945,13 +945,18 @@ class XTCEParser:
         comparison_list: xtce.ComparisonListType
         comparison_list = criteria.get_ComparisonList()
         is_valid = True
+        # print("validate_packet**1")
         if len(comparison_list.get_Comparison()) > 0:
             for comparison in comparison_list.get_Comparison():
                 v = ValueEvaluator()
+                # print("validate_packet**2")
+                # print(f"path:{path}")
+                # print(f"container_map:{container_map}")
                 if v.evaluate(container_map, comparison, packet) is not True:
                     is_valid = False
                     break
         if is_valid:
+            # print("validate_packet**3")
             # TODO: Extract endian from the params
             container_bits = bitarray(endian='little')
             container_bits.frombytes(packet)
@@ -972,7 +977,7 @@ class XTCEParser:
                          base_container_size + param_offset:base_container_size + param_offset + param_value_size]
 
             value = self.get_value_from_bits(value_bits, container_map[XTCEParser.PARAMS_KEY], param_name)
-
+        # print("validate_packet**4")
         return value
 
     def craft_tlm_command(self, path: str, args: dict, post_processor: MsgPostProcessor = None) -> bytes:
@@ -1038,7 +1043,10 @@ class XTCEParser:
             if type(i_type) == xtce.IntegerParameterType:
                 # FIXME:This won't work with partials
                 size_in_bytes = int(i_type.get_IntegerDataEncoding().get_sizeInBits() / 8)
-                bytes_data = int(arg_value).to_bytes(size_in_bytes, 'little')
+                signed = False
+                if i_type.get_IntegerDataEncoding().encoding == "twosComplement":
+                    signed = True
+                bytes_data = int(arg_value).to_bytes(size_in_bytes, 'little', signed=signed)
 
                 for byte in bytes_data:
                     payload_bytes[current_byte_cursor] = byte
@@ -1070,7 +1078,15 @@ class XTCEParser:
                         for byte in bytes_data:
                             payload_bytes[current_byte_cursor] = byte
                             current_byte_cursor = 1 + current_byte_cursor
+            elif type(i_type) == xtce.BooleanParameterType:
+                size_in_bytes = int(i_type.get_IntegerDataEncoding().get_sizeInBits() / 8)
+                bytes_data = int(arg_value).to_bytes(size_in_bytes, 'little')
+
+                for byte in bytes_data:
+                    payload_bytes[current_byte_cursor] = byte
+                    current_byte_cursor = 1 + current_byte_cursor
             else:
+                print(f"type(i_type):{type(i_type)}")
                 self.logger.warning(f"No type was found for {param_name + '.' + arg['name']}")
         #         FIXME:Raise exception since we could not find a type and could not craft the message
 
@@ -1540,6 +1556,7 @@ def get_param_bit_size(params, param_name) -> int:
 class ValueEvaluator(Evaluator):
     def evaluate(self, container: dict, comparison: xtce.ComparisonType, packet: bytes) -> bool:
         valid = False
+        # print("evaluate#1")
         container_key = list(container[XTCEParser.BASE_CONTAINER_KEY].keys())[0]
         # FIXME: The value of the comparison won't always be an int.
         comp_value = int(comparison.get_value())
@@ -1552,6 +1569,8 @@ class ValueEvaluator(Evaluator):
 
         value_size = get_param_bit_size(container[XTCEParser.BASE_CONTAINER_KEY][container_key][XTCEParser.PARAMS_KEY],
                                         comp_value_ref)
+        
+        # print(f"comp_value_ref:{comp_value_ref}")
 
         # TODO: Big/Little endian is inside XTCE
         bits = bitarray(endian='big')
@@ -1559,7 +1578,11 @@ class ValueEvaluator(Evaluator):
 
         extracted_bits = bits[offset:offset + value_size]
         val = ba2int(extracted_bits)
+        # print("evaluate#2")
+        # print(f"comp_value:{comp_value}")
+        # print(f"val:{val}")
 
         if comp_value == val:
+            # print("evaluate#3")
             valid = True
         return valid
