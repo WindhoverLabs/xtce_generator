@@ -1058,7 +1058,14 @@ class XTCEParser:
                 # (1.7230105268977664e+16,)
                 # >> > struct.unpack('>f', b)  # big-endian
                 # (-109.22724914550781,)
-                bytes_data = struct.pack('<f', arg_value)
+                # float
+                if i_type.get_FloatDataEncoding().get_sizeInBits() == 32:
+                    bytes_data = struct.pack('<f', arg_value)
+                    # print("FloatParameterType#1")
+                # double
+                elif i_type.get_FloatDataEncoding().get_sizeInBits() == 64:
+                    bytes_data = struct.pack('<d', arg_value)
+                    # print(f"FloatParameterType#2:{arg_value}")
 
                 for byte in bytes_data:
                     payload_bytes[current_byte_cursor] = byte
