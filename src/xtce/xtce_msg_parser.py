@@ -838,6 +838,8 @@ class XTCEParser:
 
         return spacesystem
 
+
+
     def query_container_from_qualified_name(self, qualified_name: str) -> dict:
         """
         Return a ContainerType from a query string such as "/cfs/cpd/apps/px4lib/PX4_VEHICLE_GLOBAL_POSITION_MID.Lat".
@@ -855,6 +857,61 @@ class XTCEParser:
         result_container = system[self.CONTAINERS_KEY][container_name]
 
         return result_container
+
+    def __getitem__(self, key: str) -> xtce.SpaceSystemType:
+        """
+        Returns a reference to the namespace with the name of key. If the namespace does not exist, then a new namespace
+        with the name of key is created. New namespaces are guaranteed to have an empty CommandMetaDataType object and
+        an empty TelemetryMetaDataType object.
+        :param key: The name of the namespace.
+        :return:
+        """
+        if not (XTCEManager.NAMESPACE_SEPARATOR in key):
+            if key not in self.__namespace_dict:
+                key = XTCEManager.NAMESPACE_SEPARATOR + self.root.get_name() + XTCEManager.NAMESPACE_SEPARATOR + key
+                # self.__namespace_dict[key] = xtce.SpaceSystemType(name=key)
+                # self.__get_namespace(key).set_CommandMetaData(xtce.CommandMetaDataType())
+                # self.__get_namespace(key).set_TelemetryMetaData(xtce.TelemetryMetaDataType())
+                self.add_namespace(
+                    XTCEManager.NAMESPACE_SEPARATOR + self.root.get_name() + XTCEManager.NAMESPACE_SEPARATOR + key)
+        else:
+            self.__query_spacesystem_from_qualified_name(key)
+
+        return self.__get_namespace(key)
+
+
+    def find_aggregate_param_type(self, type_name: str, namespace: str) -> Union[xtce.AggregateParameterType, None]:
+        """
+        Returns a parameter type with the name of type_name. Note that this type_name is the same
+        name of a symbol that appears in the database. The namespace refers to the spacesystem inside the XTCE. The
+        namespace is the same as the modules in the database. Please note that the type returned is local to the namespace.
+        :param type_name:
+        :param namespace:
+        :return: The  param type object. If the parameter with name of type_name does not exist None is returned.
+        """
+        out_param_type_ref = None
+        if self.namespace_exists(namespace):
+            if self[namespace].get_TelemetryMetaData().get_ParameterTypeSet():
+                types = [aggregate_name for aggregate_name in
+                         self[namespace].get_TelemetryMetaData().get_ParameterTypeSet().get_AggregateParameterType() if
+                         aggregate_name.get_name() == type_name]
+
+                # FIXME: There should only be one type in the list.
+                if len(types) > 0:
+                    out_param_type_ref = types[0]
+
+        return out_param_type_ref
+
+
+    def namespace_exists(self, namespace_name: str) -> xtce.SpaceSystemType:
+        """
+        Returns whether or not the namespace exists. Please if you are a user(and not an API author)
+        always use this function instead of accessing __namespace_dict directly,
+        :param namespace_name:
+        :return:
+        """
+        namespace_name = namespace_name.rstrip(XTCEManager.NAMESPACE_SEPARATOR)
+        return namespace_name in self.__namespace_dict
 
     def query_command_from_qualified_name(self, qualified_name: str) -> dict:
         """
@@ -939,6 +996,7 @@ class XTCEParser:
         value = None
         bits = bitarray(endian='big')
         bits.frombytes(packet)
+        # print(f"path:{path}")
         container_map = self.query_container_from_qualified_name(path)
         criteria: xtce.RestrictionCriteriaType
         criteria = container_map[self.BASE_CONTAINER_KEY][self.BASE_CONTAINER_CRITERIA_KEY]
@@ -1033,6 +1091,9 @@ class XTCEParser:
         param_name = self.__get_param_name(path)
         payload_bytes = bytearray(payload_bits.tobytes())
         current_byte_cursor = int(base_container_size / 8)
+
+        # print(f"container_map[XTCEParser.PARAMS_KEY]:{container_map[XTCEParser.PARAMS_KEY]}")
+        # for p in
 
         for arg in args:
             # FIXME: For bit-addressing, use bitarray and look at issue:https://github.com/WindhoverLabs/xtce_generator/issues/64
@@ -1271,6 +1332,8 @@ class XTCEParser:
         """"
         It is assumed that the params are sequential.
         """
+
+        # print(f"param_name:{param_name}, params:{params}")
         offset = 0
         if XTCEParser.INTRINSIC_KEY in params:
             if params[XTCEParser.PARAM_NAME_KEY] == param_name:
@@ -1291,7 +1354,9 @@ class XTCEParser:
                         if aggregate_name == params[XTCEParser.HOST_PARAM]:
                             new_name = XTCEParser.STRUCT_SEPARATOR.join(name_path[1:])
                             for field in params["fields"]:
-                                offset = self.get_offset_aggregate(params["fields"][field], new_name)
+                                # print(f'params["fields"][field]:{params["fields"][field]}')
+                                offset += self.get_offset_aggregate(params["fields"][field], new_name)
+                                # print(f"offset:{offset}")
                                 if offset > 0:
                                     break
                         else:
