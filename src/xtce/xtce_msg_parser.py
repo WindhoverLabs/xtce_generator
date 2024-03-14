@@ -1094,12 +1094,18 @@ class XTCEParser:
 
         # print(f"container_map[XTCEParser.PARAMS_KEY]:{container_map[XTCEParser.PARAMS_KEY]}")
         # for p in
-
+        # print("**********************")
         for arg in args:
             # FIXME: For bit-addressing, use bitarray and look at issue:https://github.com/WindhoverLabs/xtce_generator/issues/64
             arg_value = arg['value']
 
             i_type = self.get_param_intrinsic_type(container_map[XTCEParser.PARAMS_KEY], param_name + "." + arg['name'])
+            # Jump to the beginning of the field inside packet
+            offset = self.get_offset_aggregate(container_map[XTCEParser.PARAMS_KEY], param_name + "." + arg['name']) + base_container_size
+            current_byte_cursor = int(offset/8)
+            # print(f"offset:{offset/8} for name:{param_name + '.' + arg['name']}")
+            # print(f"current_byte_cursor:{current_byte_cursor}")
+            # current_byte_cursor = offset
             # FIXME:Check byte order
             if type(i_type) == xtce.IntegerParameterType:
                 # FIXME:This won't work with partials
@@ -1133,19 +1139,25 @@ class XTCEParser:
                     current_byte_cursor = current_byte_cursor + 1
 
             elif type(i_type) == xtce.EnumeratedParameterType:
+                size_in_bytes = int(i_type.get_IntegerDataEncoding().get_sizeInBits() / 8)
+                signed = False
+                if i_type.get_IntegerDataEncoding().encoding == "twosComplement":
+                    signed = True
+
+                bytes_data = int(arg_value).to_bytes(size_in_bytes, 'little', signed=signed)
+
+                for byte in bytes_data:
+                    payload_bytes[current_byte_cursor] = byte
+                    current_byte_cursor = 1 + current_byte_cursor
+
+                enum_exists = False
                 for enum in i_type.get_EnumerationList().get_Enumeration():
                     enum: xtce.ValueEnumerationType()
                     if enum.get_value() == arg_value:
-                        size_in_bytes = int(i_type.get_IntegerDataEncoding().get_sizeInBits() / 8)
-                        signed = False
-                        if i_type.get_IntegerDataEncoding().encoding == "twosComplement":
-                            signed = True
-
-                        bytes_data = int(arg_value).to_bytes(size_in_bytes, 'little', signed=signed)
-
-                        for byte in bytes_data:
-                            payload_bytes[current_byte_cursor] = byte
-                            current_byte_cursor = 1 + current_byte_cursor
+                        enum_exists = True
+                        break
+                if not enum_exists:
+                        print(f"Unknown enum value:{arg_value}")
             elif type(i_type) == xtce.BooleanParameterType:
                 size_in_bytes = int(i_type.get_IntegerDataEncoding().get_sizeInBits() / 8)
                 bytes_data = int(arg_value).to_bytes(size_in_bytes, 'little')
