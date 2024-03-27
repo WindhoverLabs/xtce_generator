@@ -826,7 +826,7 @@ class XTCEParser:
 
     def __query_spacesystem_from_qualified_name(self, qualified_name: str) -> dict:
         """
-        Return a SpaceSystemType from a query string such as "/cfs/cpd/apps/px4lib/PX4_VEHICLE_GLOBAL_POSITION_MID.Lat".
+        Return a SpaceSystemType from a query string such as "/cfs/cpd/apps/airlinerlib/AIRLINER_VEHICLE_GLOBAL_POSITION_MID.Lat".
         """
         qualified_name = qualified_name.strip(XTCEManager.NAMESPACE_SEPARATOR)
         current_name = ""
@@ -842,7 +842,7 @@ class XTCEParser:
 
     def query_container_from_qualified_name(self, qualified_name: str) -> dict:
         """
-        Return a ContainerType from a query string such as "/cfs/cpd/apps/px4lib/PX4_VEHICLE_GLOBAL_POSITION_MID.Lat".
+        Return a ContainerType from a query string such as "/cfs/cpd/apps/airlinerlib/AIRLINER_VEHICLE_GLOBAL_POSITION_MID.Lat".
         If the container is not found, None is returned.
         """
         result_container = None
@@ -915,7 +915,7 @@ class XTCEParser:
 
     def query_command_from_qualified_name(self, qualified_name: str) -> dict:
         """
-        Return a ContainerType from a query string such as "/cfs/cpd/apps/px4lib/PX4_VEHICLE_GLOBAL_POSITION_MID.Lat".
+        Return a ContainerType from a query string such as "/cfs/cpd/apps/airlinerlib/AIRLINER_VEHICLE_GLOBAL_POSITION_MID.Lat".
         If the container is not found, None is returned.
         """
         result_command: xtce.MetaCommandType = None
