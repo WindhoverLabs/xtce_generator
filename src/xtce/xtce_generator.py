@@ -47,7 +47,10 @@ from typing import Union
 try:
     from xtce_generator.src.xtce import xtce
 except ModuleNotFoundError:
-    import xtce.xtce as xtce
+    try:
+        import xtce.xtce as xtce
+    except ModuleNotFoundError:
+        import xtce
 import argparse
 import sqlite3
 import logging
@@ -1223,7 +1226,7 @@ class XTCEManager:
         out_param.set_MemberList(member_list)
         symbol_id = str(symbol_record[0])
 
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset in fields:
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset, description in fields:
             # If this field is standalone array, ignore it for now
             if field_type == field_symbol:
                 continue
@@ -1419,7 +1422,7 @@ class XTCEManager:
 
         member_list = xtce.MemberListType()
         out_param.set_MemberList(member_list)
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset in fields:
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset, PROJECT_SOURCE_DIR in fields:
             field_multiplicity = 0
             if self.__is_array(field_id):
                 # Add 1 to upper bound since it is a zero-indexed and inclusive bound
@@ -1701,7 +1704,7 @@ class XTCEManager:
         out_length = 0
         fields = self.db_cursor.execute('SELECT * FROM fields where symbol=?',
                                         (symbol_id,)).fetchall()
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_offset, bit_size in \
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_offset, bit_size, description in \
                 fields:
             field_multiplicity = self.__get_array(field_id)
 
