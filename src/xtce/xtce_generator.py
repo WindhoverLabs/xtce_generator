@@ -1625,7 +1625,7 @@ class XTCEManager:
             if min_rate is not None:
                 default_rate = xtce.RateInStreamType(minimumValue=min_rate)
 
-            seq_container = xtce.SequenceContainerType(name=str(tlm_name), DefaultRateInStream=default_rate, LongDescription=description)
+            seq_container = xtce.SequenceContainerType(name=str(tlm_name), DefaultRateInStream=default_rate, shortDescription=description)
             container_entry_list = xtce.EntryListType()
             seq_container.set_EntryList(container_entry_list)
 
