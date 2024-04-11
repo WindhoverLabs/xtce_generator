@@ -1,4 +1,4 @@
-root_spacesystem: cfs #Used to assemble the output file name for now.
+root_spacesystem: reference #Used to assemble the output file name for now.
 #cpu_id: reference #useful for obc builds
 
 # The global settings affect every namespace except for the root namespace/spacesystem since the root spacesystem is

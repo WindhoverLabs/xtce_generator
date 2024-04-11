@@ -1226,7 +1226,7 @@ class XTCEManager:
         out_param.set_MemberList(member_list)
         symbol_id = str(symbol_record[0])
 
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset, description in fields:
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset, short_description, long_description in fields:
             # If this field is standalone array, ignore it for now
             if field_type == field_symbol:
                 continue
@@ -1422,7 +1422,7 @@ class XTCEManager:
 
         member_list = xtce.MemberListType()
         out_param.set_MemberList(member_list)
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset, PROJECT_SOURCE_DIR in fields:
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_size, bit_offset, short_description, long_description in fields:
             field_multiplicity = 0
             if self.__is_array(field_id):
                 # Add 1 to upper bound since it is a zero-indexed and inclusive bound
@@ -1620,13 +1620,15 @@ class XTCEManager:
             tlm_module = tlm[5]
             min_rate = tlm[6]
             short_description = tlm[7]
+            long_description = tlm[8]
 
             default_rate = None
             if min_rate is not None:
                 default_rate = xtce.RateInStreamType(minimumValue=min_rate)
 
             seq_container = xtce.SequenceContainerType(name=str(tlm_name), DefaultRateInStream=default_rate,
-                                                       shortDescription=short_description)
+                                                       shortDescription=short_description,
+                                                       LongDescription=long_description)
             container_entry_list = xtce.EntryListType()
             seq_container.set_EntryList(container_entry_list)
 
@@ -1644,7 +1646,8 @@ class XTCEManager:
                         base_paramtype_set.add_AggregateParameterType(aggregate_type)
                     telemetry_param = xtce.ParameterType(name=tlm_name,
                                                          parameterTypeRef=aggregate_type.get_name(),
-                                                         shortDescription=short_description)
+                                                         shortDescription=short_description,
+                                                         LongDescription=long_description)
 
                     container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
 
@@ -1706,7 +1709,7 @@ class XTCEManager:
         out_length = 0
         fields = self.db_cursor.execute('SELECT * FROM fields where symbol=?',
                                         (symbol_id,)).fetchall()
-        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_offset, bit_size, description in \
+        for field_id, field_symbol, field_name, field_byte_offset, field_type, field_little_endian, bit_offset, bit_size, short_description, long_description in \
                 fields:
             field_multiplicity = self.__get_array(field_id)
 
