@@ -133,7 +133,7 @@ class XTCEManager:
         self.root.set_TelemetryMetaData(self.telemetry_metadata)
         self.root.set_CommandMetaData(self.command_metadata)
 
-        if not(XTCEManager.NAMESPACE_SEPARATOR in root_space_system):
+        if not (XTCEManager.NAMESPACE_SEPARATOR in root_space_system):
             self.__namespace_dict = dict({XTCEManager.NAMESPACE_SEPARATOR + root_space_system: self.root})
         else:
             self.__namespace_dict = dict({root_space_system: self.root})
@@ -883,7 +883,7 @@ class XTCEManager:
                 or type_name == 'uint32' \
                 or type_name == 'unsigned int' \
                 or type_name == 'unsigned' \
-                or type_name == 'uint64'\
+                or type_name == 'uint64' \
                 or type_name == 'unsigned char':
             out_base_type = (True, 'uint')
         # FIXME: char types need to be handled properly
@@ -1619,13 +1619,14 @@ class XTCEManager:
             tlm_symbol_id = tlm[4]
             tlm_module = tlm[5]
             min_rate = tlm[6]
-            description = tlm[7]
+            short_description = tlm[7]
 
             default_rate = None
             if min_rate is not None:
                 default_rate = xtce.RateInStreamType(minimumValue=min_rate)
 
-            seq_container = xtce.SequenceContainerType(name=str(tlm_name), DefaultRateInStream=default_rate, shortDescription=description)
+            seq_container = xtce.SequenceContainerType(name=str(tlm_name), DefaultRateInStream=default_rate,
+                                                       shortDescription=short_description)
             container_entry_list = xtce.EntryListType()
             seq_container.set_EntryList(container_entry_list)
 
@@ -1642,7 +1643,8 @@ class XTCEManager:
                     if self.__aggregate_paramtype_exists(symbol[2], module_name) is False:
                         base_paramtype_set.add_AggregateParameterType(aggregate_type)
                     telemetry_param = xtce.ParameterType(name=tlm_name,
-                                                         parameterTypeRef=aggregate_type.get_name())
+                                                         parameterTypeRef=aggregate_type.get_name(),
+                                                         shortDescription=short_description)
 
                     container_param_ref = xtce.ParameterRefEntryType(parameterRef=telemetry_param.get_name())
 
@@ -1765,7 +1767,7 @@ class XTCEManager:
                 # FIXME: Make this more readable
                 aggregate_members = self.__extract_members_from_aggregate_argtype(
                     [aggregate_type for aggregate_type in self[namespace].
-                        get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType()
+                    get_CommandMetaData().get_ArgumentTypeSet().get_AggregateArgumentType()
                      if aggregate_type.get_name() == type_ref][0], namespace)
                 for aggregate_member in aggregate_members.get_Member():
                     new_member = xtce.MemberType()
@@ -1853,7 +1855,7 @@ class XTCEManager:
         """
         out_parent_modules.append(child_module_name)
         parent_key = \
-        self.db_cursor.execute('select parent_module from modules where name=?', (child_module_name,)).fetchone()[0]
+            self.db_cursor.execute('select parent_module from modules where name=?', (child_module_name,)).fetchone()[0]
         if parent_key is not None:
             new_parent = self.db_cursor.execute('select name from modules where id=?', (parent_key,)).fetchone()
             self.__inspect_parent_modules(new_parent[0], out_parent_modules)
@@ -1895,7 +1897,6 @@ class XTCEManager:
                                         self.custom_config['global']['CommandMetaData']['BaseContainer'][
                                             'container_ref'])
 
-
     def __get_new_algorithm(self, qualified_module_name: str, algo_name: str, language: str, script_text: str):
         """
         Creates a new algorithm called algo_name.
@@ -1905,17 +1906,19 @@ class XTCEManager:
         algo_inputs = xtce.InputSetType()
         algo_outputs = xtce.OutputSetType()
         algo_triggers = xtce.TriggerSetType()
-        algorithm_id =  self.db_cursor.execute('select id from algorithms where name=?', (algo_name,)).fetchone()[0]
+        algorithm_id = self.db_cursor.execute('select id from algorithms where name=?', (algo_name,)).fetchone()[0]
 
         # Enforcing order by id here so that the XTCE output is in the same order the user expects it to be.
         # Makes for a more uniformed user-experience as these algorithms are displayed in UIs such as YAMCS
-        for parameter_ref, input_name, algorithm in self.db_cursor.execute('select parameter_ref, input_name, algorithm '
-                                       'from algorithm_inputs  where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
+        for parameter_ref, input_name, algorithm in self.db_cursor.execute(
+                'select parameter_ref, input_name, algorithm '
+                'from algorithm_inputs  where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_inputs.add_InputParameterInstanceRef(
                 xtce.InputParameterInstanceRefType(parameterRef=parameter_ref, inputName=input_name))
 
-        for parameter_ref, output_name, algorithm, output_type in  self.db_cursor.execute('select parameter_ref, output_name, algorithm, type '
-                                       'from algorithm_outputs where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
+        for parameter_ref, output_name, algorithm, output_type in self.db_cursor.execute(
+                'select parameter_ref, output_name, algorithm, type '
+                'from algorithm_outputs where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
             algo_outputs.add_OutputParameterRef(
                 xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
@@ -1949,7 +1952,7 @@ class XTCEManager:
                                                 parameterTypeRef=type_ref_name)
             else:
                 symbol = self.db_cursor.execute('SELECT * FROM symbols where id=?',
-                                                      (output_type,)).fetchone()
+                                                (output_type,)).fetchone()
 
                 aggregate_type = self.__get_aggregate_paramtype(symbol, qualified_module_name, header_present=False)
 
@@ -1963,11 +1966,10 @@ class XTCEManager:
 
             self[qualified_module_name].get_TelemetryMetaData().get_ParameterSet().add_Parameter(algo_param)
 
-
         for parameter_ref, algorithm in self.db_cursor.execute('select parameter_ref, algorithm '
-                                                                   'from algorithm_triggers where algorithm=? ORDER BY id', (algorithm_id,)).fetchall():
+                                                               'from algorithm_triggers where algorithm=? ORDER BY id',
+                                                               (algorithm_id,)).fetchall():
             algo_triggers.add_OnParameterUpdateTrigger(xtce.OnParameterUpdateTriggerType(parameterRef=parameter_ref))
-
 
         algo.set_InputSet(algo_inputs)
         algo.set_OutputSet(algo_outputs)
@@ -1986,7 +1988,8 @@ class XTCEManager:
         module_space_system.get_TelemetryMetaData().get_AlgorithmSet().add_CustomAlgorithm(algo)
 
     def __add_algorithms_to_module(self, algorithm_module_id: int):
-        module_name = self.db_cursor.execute("select name from modules where id=?", (algorithm_module_id,)).fetchone()[0]
+        module_name = self.db_cursor.execute("select name from modules where id=?", (algorithm_module_id,)).fetchone()[
+            0]
         modules = []
         self.__inspect_parent_modules(module_name, modules)
         modules.reverse()
@@ -2028,7 +2031,6 @@ class XTCEManager:
         #         script_text = f.read()
         #
         #     self.__add_algorithm(qualified_module_name, name, language, script_text)
-
 
     def __get_namespace(self, namespace_name: str) -> xtce.SpaceSystemType:
         """
@@ -2200,7 +2202,6 @@ def generate_xtce(database_path: str, config_yaml: dict, output_path: str, root_
 
     logging.info('Adding Algorithms to xtce...')
     xtce_obj.add_algorithms()
-
 
     logging.info('Writing xtce object to file...')
     xtce_obj.write_to_file(namespace=root_spacesystem)
