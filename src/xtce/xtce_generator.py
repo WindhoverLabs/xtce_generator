@@ -1800,8 +1800,11 @@ class XTCEManager:
             command_macro = command[4]
             command_symbol_id = command[5]
             command_module = command[6]
+            short_description = command[7]
+            long_description = command[8]
 
-            meta_command = xtce.MetaCommandType(name=command_name)
+
+            meta_command = xtce.MetaCommandType(name=command_name, shortDescription=short_description, LongDescription=long_description)
             command_container = xtce.CommandContainerType(
                 name=command_name + '-container')
             container_entry_list = xtce.CommandContainerEntryListType()
