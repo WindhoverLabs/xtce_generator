@@ -950,7 +950,7 @@ class XTCEManager:
         :param symbol_id:
         :return: The name of the enumeration if it is found. Otherwise, None is returned.
         """
-        enums = self.db_cursor.execute('SELECT name, byte_size, artifact, long_description,short_description  FROM symbols where id=?',
+        enums = self.db_cursor.execute('SELECT name, byte_size, name, long_description,short_description  FROM symbols where id=?',
                                        (symbol_id,)).fetchall()
 
         out_enum_name = None
