@@ -790,16 +790,18 @@ class XTCEManager:
         :return: A list with all of the records fetched from dimension_lists. If no records are found,
         an empty list is returned.
         """
-        dim_list_records = self.db_cursor.execute('SELECT id, field_id, dim_order, upper_bound FROM dimension_lists WHERE field_id=?',
-                                                  (field_id,)).fetchall()
+        dim_list_records = self.db_cursor.execute(
+            'SELECT id, field_id, dim_order, upper_bound FROM dimension_lists WHERE field_id=?',
+            (field_id,)).fetchall()
         return dim_list_records
 
     def __is_array(self, field_id) -> bool:
         """
         Return True if the field with field_id is an array. Otherwise, return False.
         """
-        dim_list_records = self.db_cursor.execute('SELECT id,field_id,dim_order,upper_bound FROM dimension_lists WHERE field_id=?',
-                                                  (field_id,)).fetchall()
+        dim_list_records = self.db_cursor.execute(
+            'SELECT id,field_id,dim_order,upper_bound FROM dimension_lists WHERE field_id=?',
+            (field_id,)).fetchall()
         return len(dim_list_records) > 0
 
     def __get_dimension_list_param_type(self, field_id) -> xtce.DimensionListType:
@@ -811,8 +813,9 @@ class XTCEManager:
         """
         # In XTCE DimensionListType is the parameter version of this type
         dim_list_param_type = xtce.DimensionListType()
-        dim_list_records = self.db_cursor.execute('SELECT id, field_id, dim_order, upper_bound FROM dimension_lists WHERE field_id=?',
-                                                  (field_id,)).fetchall()
+        dim_list_records = self.db_cursor.execute(
+            'SELECT id, field_id, dim_order, upper_bound FROM dimension_lists WHERE field_id=?',
+            (field_id,)).fetchall()
         # Enforce order by dim_order
         dim_list_records.sort(key=lambda dim_list_record: dim_list_record[3])
 
@@ -884,7 +887,8 @@ class XTCEManager:
                 or type_name == 'unsigned int' \
                 or type_name == 'unsigned' \
                 or type_name == 'uint64' \
-                or type_name == 'unsigned char':
+                or type_name == 'unsigned char'\
+                or type_name == "short unsigned int":
             out_base_type = (True, 'uint')
         # FIXME: char types need to be handled properly
         elif type_name == 'char':
@@ -926,8 +930,9 @@ class XTCEManager:
         :param symbol_id:
         :return: True if the symbol is an enum. Otherwise, False is returned.
         """
-        return len(self.db_cursor.execute('SELECT id,symbol,value,name,long_description,short_description FROM enumerations where symbol=?',
-                                          (symbol_id,)).fetchall()) > 0
+        return len(self.db_cursor.execute(
+            'SELECT id,symbol,value,name,long_description,short_description FROM enumerations where symbol=?',
+            (symbol_id,)).fetchall()) > 0
 
     def __is__symbol_string(self, symbol_id: int):
         """
@@ -937,6 +942,7 @@ class XTCEManager:
         """
         # NOTE: This could be cached when the XTCEManager instance is created.
         is_string = False
+        symbol_id = self.__follow_symbol_to_target(symbol_id)
         symbol_name, = self.db_cursor.execute('SELECT name FROM symbols where id=?',
                                               (symbol_id,)).fetchone()
         if symbol_name == 'string':
@@ -950,8 +956,10 @@ class XTCEManager:
         :param symbol_id:
         :return: The name of the enumeration if it is found. Otherwise, None is returned.
         """
-        enums = self.db_cursor.execute('SELECT name, byte_size, name, long_description,short_description  FROM symbols where id=?',
-                                       (symbol_id,)).fetchall()
+        symbol_id = self.__follow_symbol_to_target(symbol_id)
+        enums = self.db_cursor.execute(
+            'SELECT name, byte_size, name, long_description,short_description  FROM symbols where id=?',
+            (symbol_id,)).fetchall()
 
         out_enum_name = None
 
@@ -968,6 +976,7 @@ class XTCEManager:
         :param symbol_id: id of symbol that points to this enumeration type in the database.
         :return:
         """
+        symbol_id = self.__follow_symbol_to_target(symbol_id)
         symbol_elf, symbol_name, byte_size = self.db_cursor.execute(
             'SELECT elf, name,byte_size FROM symbols where id=?',
             (symbol_id,)).fetchone()
@@ -1010,6 +1019,7 @@ class XTCEManager:
         :param symbol_id: id of symbol that points to this enumeration type in the database.
         :return:
         """
+        symbol_id = self.__follow_symbol_to_target(symbol_id)
         symbol_elf, symbol_name, byte_size = self.db_cursor.execute(
             'SELECT elf, name,byte_size FROM symbols where id=?',
             (symbol_id,)).fetchone()
@@ -1145,12 +1155,15 @@ class XTCEManager:
         """
         does_enum_exist = False
 
-        type_name = self.db_cursor.execute('SELECT id,symbol,value,name,long_description,short_description FROM enumerations WHERE symbol=?',
-                                           (symbol_id,)).fetchall()
+        type_name = self.db_cursor.execute(
+            'SELECT id,symbol,value,name,long_description,short_description FROM enumerations WHERE symbol=?',
+            (symbol_id,)).fetchall()
 
         if len(type_name) > 0:
-            enum_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols WHERE id=?',
-                                                 (symbol_id,)).fetchall()[0][2]
+            symbol_id = self.__follow_symbol_to_target(symbol_id)
+            enum_symbol = self.db_cursor.execute(
+                'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols WHERE id=?',
+                (symbol_id,)).fetchall()[0][2]
             if self.namespace_exists(namespace):
                 if self[namespace].get_TelemetryMetaData().get_ParameterTypeSet():
                     types = [enum_name.get_name() for enum_name in
@@ -1171,12 +1184,15 @@ class XTCEManager:
         """
         does_enum_exist = False
 
-        type_name = self.db_cursor.execute('SELECT id,symbol,value,name,long_description,short_description FROM enumerations WHERE symbol=?',
-                                           (symbol_id,)).fetchall()
+        type_name = self.db_cursor.execute(
+            'SELECT id,symbol,value,name,long_description,short_description FROM enumerations WHERE symbol=?',
+            (symbol_id,)).fetchall()
 
         if len(type_name) > 0:
-            enum_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols WHERE id=?',
-                                                 (symbol_id,)).fetchall()[0][2]
+            symbol_id = self.__follow_symbol_to_target()
+            enum_symbol = self.db_cursor.execute(
+                'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols WHERE id=?',
+                (symbol_id,)).fetchall()[0][2]
             if self.namespace_exists(namespace):
                 if self[namespace].get_CommandMetaData().get_ArgumentTypeSet():
                     types = [enum_name.get_name() for enum_name in
@@ -1221,11 +1237,13 @@ class XTCEManager:
 
         if header_present:
             fields = list(filter(lambda record: record[3] >= header_size / 8,
-                                 self.db_cursor.execute('SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
-                                                        (symbol_id,)).fetchall()))
+                                 self.db_cursor.execute(
+                                     'SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
+                                     (symbol_id,)).fetchall()))
         else:
-            fields = self.db_cursor.execute('SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
-                                            (symbol_id,)).fetchall()
+            fields = self.db_cursor.execute(
+                'SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
+                (symbol_id,)).fetchall()
 
         # Enforce ordering of fields by offset.
         fields.sort(key=lambda record: record[3])
@@ -1245,9 +1263,10 @@ class XTCEManager:
 
             elif self.__is_array(field_id):
                 logging.debug(f'comparing {field_type} and {field_symbol}')
-
-                symbol_type = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                     (field_type,)).fetchone()
+                field_type = self.__follow_symbol_to_target(field_type)
+                symbol_type = self.db_cursor.execute(
+                    'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                    (field_type,)).fetchone()
                 # The symbol_type is expected, as per our schema, to have the form of (id, elf ,name, byte_size)
                 if symbol_type:
                     logging.debug(f'symbol_type$$$$-->{symbol_type}')
@@ -1271,8 +1290,10 @@ class XTCEManager:
                                                                  self.is_little_endian(symbol_type[1]))
                     else:
                         logging.debug(f'field type-->{field_type}')
-                        child_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                              (field_type,)).fetchone()
+                        field_type = self.__follow_symbol_to_target(field_type)
+                        child_symbol = self.db_cursor.execute(
+                            'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                            (field_type,)).fetchone()
 
                         logging.debug(f'field_symbol id:{field_symbol}')
                         logging.debug(f'child symbol-->{child_symbol}')
@@ -1331,8 +1352,10 @@ class XTCEManager:
                 logging.debug('else block')
                 member = xtce.MemberType()
                 member.set_name(field_name)
-                symbol_type = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                     (field_type,)).fetchone()
+                field_type = self.__follow_symbol_to_target(field_type)
+                symbol_type = self.db_cursor.execute(
+                    'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                    (field_type,)).fetchone()
                 # The symbol_type is expected, as per our schema, to have the form of (id, elf ,name, byte_size)
                 if symbol_type:
                     logging.debug(f'symbol_type$$$$-->{symbol_type}')
@@ -1355,8 +1378,10 @@ class XTCEManager:
                                                                  self.is_little_endian(symbol_type[1]))
                     else:
                         logging.debug(f'field type-->{field_type}')
-                        child_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                              (field_type,)).fetchone()
+                        field_type = self.__follow_symbol_to_target(field_type)
+                        child_symbol = self.db_cursor.execute(
+                            'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                            (field_type,)).fetchone()
 
                         logging.debug(f'field_symbol id:{field_symbol}')
                         logging.debug(f'child symbol-->{child_symbol}')
@@ -1417,13 +1442,17 @@ class XTCEManager:
 
         symbol_id = str(symbol_record[0])
 
+        symbol_id = self.__follow_symbol_to_target(symbol_id)
+
         if header_present:
             fields = list(filter(lambda record: record[3] >= header_size / 8,
-                                 self.db_cursor.execute('SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
-                                                        (symbol_id,)).fetchall()))
+                                 self.db_cursor.execute(
+                                     'SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
+                                     (symbol_id,)).fetchall()))
         else:
-            fields = self.db_cursor.execute('SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
-                                            (symbol_id,)).fetchall()
+            fields = self.db_cursor.execute(
+                'SELECT id,symbol,name,byte_offset,type,little_endian,bit_size,bit_offset,long_description,short_description FROM fields where symbol=?',
+                (symbol_id,)).fetchall()
 
         # Enforce ordering of fields by offset.
         fields.sort(key=lambda record: record[3])
@@ -1448,9 +1477,10 @@ class XTCEManager:
             elif field_multiplicity > 0:
 
                 logging.debug(f'comparing{field_type} and {field_symbol}')
-
-                symbol_type = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                     (field_type,)).fetchone()
+                field_type = self.__follow_symbol_to_target(field_type)
+                symbol_type = self.db_cursor.execute(
+                    'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                    (field_type,)).fetchone()
                 # The symbol_type is expected, as per our schema, to have the form of (id, elf ,name, byte_size)
                 if symbol_type:
                     logging.debug(f'symbol_type$$$$-->{symbol_type}')
@@ -1473,8 +1503,10 @@ class XTCEManager:
                                                                  self.is_little_endian(symbol_type[1]))
                     else:
                         logging.debug(f'field type-->{field_type}')
-                        child_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                              (field_type,)).fetchone()
+                        field_type = self.__follow_symbol_to_target(field_type)
+                        child_symbol = self.db_cursor.execute(
+                            'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                            (field_type,)).fetchone()
 
                         logging.debug(f'field_symbol id:{field_symbol}')
                         logging.debug(f'child symbol-->{child_symbol}')
@@ -1516,8 +1548,10 @@ class XTCEManager:
                                 field_multiplicity *= dim[0][3] + 1
 
                         for index in range(field_multiplicity):
-                            child_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                                  (field_type,)).fetchone()
+                            field_type = self.__follow_symbol_to_target(field_type)
+                            child_symbol = self.db_cursor.execute(
+                                'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                                (field_type,)).fetchone()
 
                             # FIXME: This entire function needs to be decoupled (?)
                             logging.debug(f'field_symbol id on array:{field_symbol}')
@@ -1536,8 +1570,10 @@ class XTCEManager:
                 logging.debug('else block')
                 member = xtce.MemberType()
                 member.set_name(field_name)
-                symbol_type = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                     (field_type,)).fetchone()
+                field_type = self.__follow_symbol_to_target(field_type)
+                symbol_type = self.db_cursor.execute(
+                    'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                    (field_type,)).fetchone()
                 # The symbol_type is expected, as per our schema, to have the form of (id, elf ,name, byte_size)
                 if symbol_type:
                     logging.debug(f'symbol_type$$$$-->{symbol_type}')
@@ -1560,8 +1596,10 @@ class XTCEManager:
                                                                  self.is_little_endian(symbol_type[1]))
                     else:
                         logging.debug(f'field type-->{field_type}')
-                        child_symbol = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                              (field_type,)).fetchone()
+                        field_type = self.__follow_symbol_to_target(field_type)
+                        child_symbol = self.db_cursor.execute(
+                            'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                            (field_type,)).fetchone()
 
                         logging.debug(f'field_symbol id:{field_symbol}')
                         logging.debug(f'child symbol-->{child_symbol}')
@@ -1610,6 +1648,23 @@ class XTCEManager:
         apid = int(bits[len(bits) - offset: len(bits)], 2)
         return apid
 
+    def __follow_symbol_to_target(self, symbol_id: int):
+        """
+        Follows the symbol and returns the concrete one.
+        This is usually relevant when the symbol has been typedef'd in code
+        and the typedef name is used instead of the concrete one.
+
+        Returns the symbol id of the concrete symbol
+        """
+        symbol_record = self.db_cursor.execute(
+            'select id,elf,name,byte_size,artifact,long_description,short_description, target_symbol from symbols where id=?',
+            (symbol_id,)).fetchall()
+        target_symbol_id = symbol_record[0][7]
+        if target_symbol_id is None:
+            return symbol_record[0][0]
+        else:
+            return self.__follow_symbol_to_target(target_symbol_id)
+
     def add_telemetry_containers(self, module_name: str, module_id: int, parent_container: str = None):
         """
         Iterate through all of the rows of telemetry and build our containers for each message in the database.
@@ -1623,8 +1678,9 @@ class XTCEManager:
         module_space_system.get_TelemetryMetaData().set_ParameterSet(base_param_set)
         module_space_system.get_TelemetryMetaData().set_ContainerSet(container_set)
 
-        for tlm in self.db_cursor.execute('select id,name,message_id,macro,symbol,module,min_rate,short_description,long_description from telemetry where module=?',
-                                          (module_id,)).fetchall():
+        for tlm in self.db_cursor.execute(
+                'select id,name,message_id,macro,symbol,module,min_rate,short_description,long_description from telemetry where module=?',
+                (module_id,)).fetchall():
             tlm_name = tlm[1]
             tlm_message_id = tlm[2]
             tlm_macro = tlm[3]
@@ -1646,8 +1702,11 @@ class XTCEManager:
 
             logging.debug(f'message id:{tlm_message_id}')
 
-            for symbol in self.db_cursor.execute('select id,elf,name,byte_size,artifact,long_description,short_description from symbols where id=?',
-                                                 (tlm_symbol_id,)).fetchall():
+            tlm_symbol_id = self.__follow_symbol_to_target(tlm_symbol_id)
+
+            for symbol in self.db_cursor.execute(
+                    'select id,elf,name,byte_size,artifact,long_description,short_description from symbols where id=?',
+                    (tlm_symbol_id,)).fetchall():
                 logging.debug(f'symbol{symbol} for tlm:{tlm_name}')
 
                 aggregate_type = self.__get_aggregate_paramtype(symbol, module_name,
@@ -1732,6 +1791,7 @@ class XTCEManager:
             else:
                 field_multiplicity = 0
 
+            field_type = self.__follow_symbol_to_target(field_type)
             size_of_symbol = self.db_cursor.execute('SELECT byte_size from symbols where id=?',
                                                     (field_type,)).fetchone()[0]
             if field_multiplicity > 0:
@@ -1806,19 +1866,22 @@ class XTCEManager:
         self[module_name].get_CommandMetaData().set_ArgumentTypeSet(base_argtype_set)
         self[module_name].get_CommandMetaData().set_MetaCommandSet(meta_command_set)
 
-        for command in self.db_cursor.execute('select id, name, command_code, message_id, macro, symbol,module, short_description, long_description from commands where module=?',
-                                              (module_id,)).fetchall():
+        for command in self.db_cursor.execute(
+                'select id, name, command_code, message_id, macro, symbol,module, short_description, long_description from commands where module=?',
+                (module_id,)).fetchall():
             command_name = command[1]
             command_code = command[2]
             command_message_id = command[3]
             command_macro = command[4]
             command_symbol_id = command[5]
+
+            command_symbol_id = self.__follow_symbol_to_target(command_symbol_id)
             command_module = command[6]
             short_description = command[7]
             long_description = command[8]
 
-
-            meta_command = xtce.MetaCommandType(name=command_name, shortDescription=short_description, LongDescription=long_description)
+            meta_command = xtce.MetaCommandType(name=command_name, shortDescription=short_description,
+                                                LongDescription=long_description)
             command_container = xtce.CommandContainerType(
                 name=command_name + '-container')
             container_entry_list = xtce.CommandContainerEntryListType()
@@ -1942,8 +2005,10 @@ class XTCEManager:
             algo_outputs.add_OutputParameterRef(
                 xtce.OutputParameterRefType(parameterRef=parameter_ref, outputName=output_name))
 
-            symbol_type = self.db_cursor.execute('SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
-                                                 (output_type,)).fetchone()
+            output_type = self.__follow_symbol_to_target(output_type)
+            symbol_type = self.db_cursor.execute(
+                'SELECT id,elf,name,byte_size,artifact,long_description,short_description FROM symbols where id=?',
+                (output_type,)).fetchone()
             base_type_val = self.__is_base_type(symbol_type[2])
 
             # if symbol_type:
@@ -1971,6 +2036,7 @@ class XTCEManager:
                 algo_param = xtce.ParameterType(name=output_name,
                                                 parameterTypeRef=type_ref_name)
             else:
+                output_type = self.__follow_symbol_to_target()
                 symbol = self.db_cursor.execute('SELECT id, elf, name, byte_size FROM symbols where id=?',
                                                 (output_type,)).fetchone()
 
